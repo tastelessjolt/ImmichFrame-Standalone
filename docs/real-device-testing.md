@@ -75,6 +75,15 @@ ADB authorization belongs to the host RSA key, not to a user account or GitHub c
 
 `adbkey` is the unencrypted private key and must be treated as a secret. Never commit either file to this repository, paste the private key into an issue or log, or place it in an unencrypted shared folder.
 
+The encrypted backups are stored in Vaultwarden under folder ID `d00e0595-8e2a-4861-a19b-b8d798a6f75b`. Use these item references when recovering the authorized host key:
+
+| File | Vaultwarden item ID |
+| --- | --- |
+| `adbkey` | `ee3c592f-88da-4120-bba9-f6cc118938a2` |
+| `adbkey.pub` | `674bac8b-b90e-44df-bc6f-e2ffbc754709` |
+
+These identifiers locate the encrypted Vaultwarden records; they are not substitutes for the key files and do not grant access without the Vaultwarden account.
+
 On a replacement Windows computer:
 
 1. Install Android Platform Tools but do not start `adb` yet.
