@@ -2,8 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
   android:installLocation="auto"
   package="io.github.tastelessjolt.immichframestandalone"
-  android:versionCode="6"
-  android:versionName="1.0.15.0-standalone.6">
+  android:versionCode="7"
+  android:versionName="1.0.15.0-standalone.7">
 
   <!-- Permissions -->
   <uses-permission android:name="android.permission.INTERNET" />

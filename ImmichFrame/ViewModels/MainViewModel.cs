@@ -1,6 +1,7 @@
 ﻿using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using ImmichFrame.Core.Api;
 using ImmichFrame.Core.Exceptions;
@@ -21,24 +22,27 @@ namespace ImmichFrame.ViewModels;
 public partial class MainViewModel : NavigatableViewModelBase, IDisposable
 {
 
-    public bool TimerEnabled = false;
+    public volatile bool TimerEnabled = false;
     private AssetResponseDto? CurrentAsset;
     private PreloadedAsset? NextAsset;
     private readonly NavigationHistory<AssetResponseDto> assetHistory = new(100);
     private IImmichFrameLogic _immichLogic;
     private CultureInfo culture;
     System.Threading.Timer? timerImageSwitcher;
-    System.Threading.Timer? timerLiveTime;
+    DispatcherTimer? timerLiveTime;
     System.Threading.Timer? timerWeather;
-    System.Threading.Timer? timerZoom;
+    DispatcherTimer? timerZoom;
     private bool zoomIncreasing = true;
     private DateTime lastZoomTime = DateTime.MinValue;
     private readonly SemaphoreSlim imageChangeGate = new(1, 1);
     private readonly SemaphoreSlim preloadGate = new(1, 1);
-    private UiImage? retainedImage;
-    private bool disposed;
+    private readonly SemaphoreSlim weatherRefreshGate = new(1, 1);
+    private readonly object nextAssetLock = new();
+    private int disposeSignaled;
+    private volatile bool disposed;
     private const int FrameWidth = 1280;
     private const int FrameHeight = 800;
+    private static readonly TimeSpan WeatherImageRetention = TimeSpan.FromSeconds(1);
 
 
     public ICommand NextImageCommand { get; set; }
@@ -80,7 +84,13 @@ public partial class MainViewModel : NavigatableViewModelBase, IDisposable
             timerImageSwitcher = new System.Threading.Timer(NextImageTick, null, settings.Interval * 1000, settings.Interval * 1000);
             if (settings.ShowClock)
             {
-                timerLiveTime = new System.Threading.Timer(LiveTimeTick, null, 0, 1 * 1000); //every second
+                LiveTimeTick(null);
+                timerLiveTime = new DispatcherTimer
+                {
+                    Interval = TimeSpan.FromSeconds(1),
+                };
+                timerLiveTime.Tick += (_, _) => LiveTimeTick(null);
+                timerLiveTime.Start();
             }
             if (settings.ShowWeather)
             {
@@ -88,14 +98,32 @@ public partial class MainViewModel : NavigatableViewModelBase, IDisposable
             }
             if (Settings.ImageZoom)
             {
-                timerZoom = new System.Threading.Timer(ZoomTick, null, 0, 100);
+                timerZoom = new DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(100),
+                };
+                timerZoom.Tick += (_, _) => ZoomTick(null);
+                timerZoom.Start();
             }
             isInitialized = true;
         }
     }
     public void SetImage(Bitmap image)
     {
-        Images = CreateUiImage(image);
+        var uiImage = CreateUiImage(image);
+
+        void Apply()
+        {
+            if (disposed)
+                uiImage.Dispose();
+            else
+                Images = uiImage;
+        }
+
+        if (Dispatcher.UIThread.CheckAccess())
+            Apply();
+        else
+            Dispatcher.UIThread.Post(Apply);
     }
 
     public async Task SetImage(PreloadedAsset asset)
@@ -104,38 +132,69 @@ public partial class MainViewModel : NavigatableViewModelBase, IDisposable
     }
     public async Task SetImage(AssetResponseDto asset, Stream? preloadedAsset = null)
     {
-        using (Stream imgStream = preloadedAsset ?? await asset.ServeImage(_immichLogic))
+        Bitmap? decodedImage = null;
+        Bitmap? thumbhashImage = null;
+        UiImage? uiImage = null;
+        var adopted = false;
+
+        try
         {
-            Bitmap? thumbhashImage = null;
-            if (Settings.LetterboxBackground == LetterboxBackgroundOptions.StretchedThumbhash)
+            using (Stream imgStream = preloadedAsset ?? await asset.ServeImage(_immichLogic))
             {
-                using var thumbhashStream = asset.ThumbhashImage;
-                if (thumbhashStream != null)
-                    thumbhashImage = new Bitmap(thumbhashStream);
+                if (Settings.LetterboxBackground == LetterboxBackgroundOptions.StretchedThumbhash)
+                {
+                    using var thumbhashStream = asset.ThumbhashImage;
+                    if (thumbhashStream != null)
+                        thumbhashImage = new Bitmap(thumbhashStream);
+                }
+
+                decodedImage = DecodeForFrame(imgStream, asset);
+                uiImage = CreateUiImage(decodedImage, thumbhashImage);
+                decodedImage = null;
+                thumbhashImage = null;
             }
 
-            Images = CreateUiImage(DecodeForFrame(imgStream, asset), thumbhashImage);
+            var imageDate = asset.LocalDateTime.ToString(Settings.PhotoDateFormat, culture);
+            var imageDesc = asset.ImageDesc ?? string.Empty;
+            var imageLocation = asset.ExifInfo != null
+                ? LocationHelper.GetLocationString(asset.ExifInfo)
+                : string.Empty;
 
-            ImageDate = asset?.LocalDateTime.ToString(Settings.PhotoDateFormat, culture) ?? string.Empty;
-            ImageDesc = asset?.ImageDesc ?? string.Empty;
+            await InvokeOnUiThreadAsync(() =>
+            {
+                if (disposed)
+                    return;
 
-            if (asset?.ExifInfo != null)
-            {
-                ImageLocation = LocationHelper.GetLocationString(asset.ExifInfo);
-            }
-            else
-            {
-                ImageLocation = string.Empty;
-            }
+                ImageDate = imageDate;
+                ImageDesc = imageDesc;
+                ImageLocation = imageLocation;
+                Images = uiImage;
+                adopted = true;
+            });
+
+            if (adopted && Settings.UseImmichFrameAlbum)
+                await _immichLogic.AddAssetToAlbum(asset);
         }
-        if (Settings.UseImmichFrameAlbum)
+        finally
         {
-            await _immichLogic.AddAssetToAlbum(asset!);
+            decodedImage?.Dispose();
+            thumbhashImage?.Dispose();
+            if (!adopted)
+                uiImage?.Dispose();
         }
     }
+
+    private static async Task InvokeOnUiThreadAsync(Action action)
+    {
+        if (Dispatcher.UIThread.CheckAccess())
+            action();
+        else
+            await Dispatcher.UIThread.InvokeAsync(action);
+    }
+
     private void ZoomTick(object? state)
     {
-        if (!ImagePaused)
+        if (!disposed && !ImagePaused)
         {
             if ((DateTime.Now - lastZoomTime).TotalMilliseconds < 2000)
             {
@@ -172,23 +231,53 @@ public partial class MainViewModel : NavigatableViewModelBase, IDisposable
     }
     public void LiveTimeTick(object? state)
     {
-        LiveTime = DateTime.Now.ToString(Settings.ClockFormat, culture);
+        if (!disposed)
+            LiveTime = DateTime.Now.ToString(Settings.ClockFormat, culture);
     }
     public async void WeatherTick(object? state)
     {
-        var weather = await _immichLogic.GetWeather();
-        if (weather != null)
+        if (disposed || !await weatherRefreshGate.WaitAsync(0))
+            return;
+
+        Bitmap? newWeatherImage = null;
+        var adopted = false;
+
+        try
         {
-            WeatherTemperature = $"{weather.Temperature.ToString("F1")}{weather.Unit}";
-            WeatherCurrent = weather.Description;
+            var weather = await _immichLogic.GetWeather();
+            if (weather == null || disposed)
+                return;
+
             var iconId = weather.IconId;
             var iconUri = AssetLoader.Exists(new Uri($"avares://ImmichFrame/Assets/WeatherIcons/{iconId}.png"))
                 ? new Uri($"avares://ImmichFrame/Assets/WeatherIcons/{iconId}.png")
                 : new Uri("avares://ImmichFrame/Assets/WeatherIcons/default.png");
             using var iconStream = AssetLoader.Open(iconUri);
-            var oldWeatherImage = WeatherImage;
-            WeatherImage = new Bitmap(iconStream);
-            oldWeatherImage?.Dispose();
+            newWeatherImage = new Bitmap(iconStream);
+
+            var weatherTemperature = $"{weather.Temperature.ToString("F1")}{weather.Unit}";
+            var weatherCurrent = weather.Description;
+            await InvokeOnUiThreadAsync(() =>
+            {
+                if (disposed)
+                    return;
+
+                WeatherTemperature = weatherTemperature;
+                WeatherCurrent = weatherCurrent;
+                WeatherImage = newWeatherImage;
+                adopted = true;
+            });
+        }
+        catch (Exception ex)
+        {
+            if (!disposed)
+                Console.Error.WriteLine($"ImmichFrame weather refresh failed: {ex}");
+        }
+        finally
+        {
+            if (!adopted)
+                newWeatherImage?.Dispose();
+            weatherRefreshGate.Release();
         }
     }
     public void NavigateSettingsPageAction()
@@ -223,27 +312,29 @@ public partial class MainViewModel : NavigatableViewModelBase, IDisposable
                         await SetImage(historicalAsset!);
                         CurrentAsset = historicalAsset;
                     }
-                    else if (NextAsset?.Image == null)
-                    {
-                        NextAsset?.Dispose();
-                        NextAsset = null;
-                        // Load Image if next image was not ready
-                        CurrentAsset = await _immichLogic.GetNextAsset();
-
-                        if (CurrentAsset != null)
-                        {
-                            await SetImage(CurrentAsset);
-                            assetHistory.Add(CurrentAsset);
-                        }
-                    }
                     else
                     {
-                        // Use preloaded asset
-                        using var preloadedAsset = NextAsset;
-                        NextAsset = null;
-                        await SetImage(preloadedAsset);
-                        CurrentAsset = preloadedAsset.Asset;
-                        assetHistory.Add(CurrentAsset);
+                        var preloadedAsset = TakeNextAsset();
+                        if (preloadedAsset?.Image == null)
+                        {
+                            preloadedAsset?.Dispose();
+                            // Load Image if next image was not ready
+                            CurrentAsset = await _immichLogic.GetNextAsset();
+
+                            if (CurrentAsset != null)
+                            {
+                                await SetImage(CurrentAsset);
+                                assetHistory.Add(CurrentAsset);
+                            }
+                        }
+                        else
+                        {
+                            // Use preloaded asset
+                            using (preloadedAsset)
+                                await SetImage(preloadedAsset);
+                            CurrentAsset = preloadedAsset.Asset;
+                            assetHistory.Add(CurrentAsset);
+                        }
                     }
 
                     if (!assetHistory.CanMoveNext)
@@ -322,7 +413,7 @@ public partial class MainViewModel : NavigatableViewModelBase, IDisposable
 
     private async Task PreloadNextAssetAsync()
     {
-        if (disposed || NextAsset != null || !await preloadGate.WaitAsync(0))
+        if (disposed || HasNextAsset() || !await preloadGate.WaitAsync(0))
             return;
 
         try
@@ -339,8 +430,7 @@ public partial class MainViewModel : NavigatableViewModelBase, IDisposable
                 return;
             }
 
-            NextAsset?.Dispose();
-            NextAsset = preloadedAsset;
+            StoreNextAsset(preloadedAsset);
         }
         catch
         {
@@ -350,6 +440,45 @@ public partial class MainViewModel : NavigatableViewModelBase, IDisposable
         {
             preloadGate.Release();
         }
+    }
+
+    private bool HasNextAsset()
+    {
+        lock (nextAssetLock)
+            return NextAsset != null;
+    }
+
+    private PreloadedAsset? TakeNextAsset()
+    {
+        lock (nextAssetLock)
+        {
+            var asset = NextAsset;
+            NextAsset = null;
+            return asset;
+        }
+    }
+
+    private void StoreNextAsset(PreloadedAsset asset)
+    {
+        PreloadedAsset? replacedAsset = null;
+        var disposeNewAsset = false;
+
+        lock (nextAssetLock)
+        {
+            if (disposed)
+            {
+                disposeNewAsset = true;
+            }
+            else
+            {
+                replacedAsset = NextAsset;
+                NextAsset = asset;
+            }
+        }
+
+        replacedAsset?.Dispose();
+        if (disposeNewAsset)
+            asset.Dispose();
     }
 
     public async Task PreviousImageAction()
@@ -404,17 +533,20 @@ public partial class MainViewModel : NavigatableViewModelBase, IDisposable
     }
     public void PauseImage()
     {
+        if (disposed)
+            return;
+
         ImagePaused = !ImagePaused;
         TimerEnabled = !ImagePaused;
         if (ImagePaused)
         {
             timerImageSwitcher?.Change(Timeout.Infinite, Timeout.Infinite);
-            timerZoom?.Change(Timeout.Infinite, Timeout.Infinite);
+            timerZoom?.Stop();
         }
         else
         {
             ResetTimer();
-            timerZoom?.Change(0, 100);
+            timerZoom?.Start();
         }
     }
     public void ResetTimer()
@@ -431,22 +563,27 @@ public partial class MainViewModel : NavigatableViewModelBase, IDisposable
 
     public void Dispose()
     {
-        if (disposed)
+        if (Interlocked.Exchange(ref disposeSignaled, 1) != 0)
             return;
 
         disposed = true;
         TimerEnabled = false;
         timerImageSwitcher?.Dispose();
-        timerLiveTime?.Dispose();
         timerWeather?.Dispose();
-        timerZoom?.Dispose();
-        NextAsset?.Dispose();
-        NextAsset = null;
-        Images = null;
-        retainedImage?.Dispose();
-        retainedImage = null;
-        WeatherImage?.Dispose();
-        WeatherImage = null;
+        TakeNextAsset()?.Dispose();
+
+        void DetachUiResources()
+        {
+            timerLiveTime?.Stop();
+            timerZoom?.Stop();
+            Images = null;
+            WeatherImage = null;
+        }
+
+        if (Dispatcher.UIThread.CheckAccess())
+            DetachUiResources();
+        else
+            Dispatcher.UIThread.Post(DetachUiResources, DispatcherPriority.Send);
     }
 
     [ObservableProperty]
@@ -475,8 +612,12 @@ public partial class MainViewModel : NavigatableViewModelBase, IDisposable
 
     partial void OnImagesChanged(UiImage? oldValue, UiImage? newValue)
     {
-        retainedImage?.Dispose();
-        retainedImage = oldValue;
+        UiResourceLifetime.DisposeAfter(oldValue, UiResourceLifetime.AfterTransition(Settings.TransitionDuration));
+    }
+
+    partial void OnWeatherImageChanged(Bitmap? oldValue, Bitmap? newValue)
+    {
+        UiResourceLifetime.DisposeAfter(oldValue, WeatherImageRetention);
     }
 
     partial void OnImageLocationChanged(string? value)

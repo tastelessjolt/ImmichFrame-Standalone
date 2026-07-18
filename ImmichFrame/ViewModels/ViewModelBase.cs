@@ -1,5 +1,6 @@
 ﻿using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Avalonia.Threading;
 using System;
 using System.Threading.Tasks;
 
@@ -24,6 +25,12 @@ public class NavigatableViewModelBase : ViewModelBase
 {
     public virtual void Navigate(NavigatableViewModelBase viewModel)
     {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(() => Navigate(viewModel));
+            return;
+        }
+
         Disposed?.Invoke(this, new EventArgs());
         Navigated?.Invoke(this, new NavigatedEventArgs(viewModel));
     }
