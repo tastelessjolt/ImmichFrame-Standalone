@@ -60,6 +60,10 @@ ImmichFrame is easy to run on your desired plattform. Get the latest stable rele
 
 - A set up and functioning immich server that is accessible by the network of the ImmichFrame device.
 
+### 🧪 Maintainer real-device testing
+
+The Android 6 Frameo test device is reserved at `192.168.0.7` and accepts authorized ADB connections at `192.168.0.7:5555`. See the [real-device Wi-Fi ADB testing guide](docs/real-device-testing.md) for the verified build, update, launch, log, screenshot, and slideshow-navigation procedure.
+
 <!-- USAGE EXAMPLES -->
 
 ## 🔧 Usage / Installation
