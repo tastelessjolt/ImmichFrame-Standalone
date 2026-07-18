@@ -90,6 +90,24 @@ public class AlbumResponseCompatibilityTests
         }
         """;
 
+    private const string CurrentPeopleResponse = """
+        {
+          "hasNextPage": false,
+          "hidden": 0,
+          "people": [
+            {
+              "birthDate": null,
+              "id": "44444444-4444-4444-8444-444444444444",
+              "isHidden": false,
+              "name": "Alex Example",
+              "thumbnailPath": "thumb.jpg",
+              "updatedAt": "2026-07-01T00:00:00.000Z"
+            }
+          ],
+          "total": 1
+        }
+        """;
+
     [Test]
     public async Task GetAllAlbums_accepts_owner_role_and_current_summary_shape()
     {
@@ -129,6 +147,22 @@ public class AlbumResponseCompatibilityTests
         {
             Assert.That(asset.Id, Is.EqualTo("33333333-3333-4333-8333-333333333333"));
             Assert.That(asset.People.Single().Id, Is.EqualTo("44444444-4444-4444-8444-444444444444"));
+        });
+    }
+
+    [Test]
+    public async Task GetAllPeople_accepts_named_people_response()
+    {
+        using var httpClient = new HttpClient(new JsonResponseHandler(CurrentPeopleResponse));
+        var api = new ImmichApi("https://immich.example", httpClient);
+
+        var result = await api.GetAllPeopleAsync(1, 250, false);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasNextPage, Is.False);
+            Assert.That(result.Total, Is.EqualTo(1));
+            Assert.That(result.People.Single().Name, Is.EqualTo("Alex Example"));
         });
     }
 

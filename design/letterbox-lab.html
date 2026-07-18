@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ImmichFrame — Letterbox background lab</title>
+  <style>
+    @font-face {
+      font-family: "Google Sans Local";
+      src: url("../ImmichFrame/Assets/Fonts/GoogleSans-Regular.ttf") format("truetype");
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    @font-face {
+      font-family: "Google Sans Local";
+      src: url("../ImmichFrame/Assets/Fonts/GoogleSans-Bold.ttf") format("truetype");
+      font-weight: 700;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    :root {
+      color-scheme: dark;
+      --paper: #0c0d0e;
+      --panel: #141619;
+      --line: #34383e;
+      --ink: #f1efe8;
+      --muted: #9ca1a8;
+      --orange: #ff7138;
+      --green: #a9dc76;
+      font-family: "Google Sans Local", "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { background: var(--paper); }
+
+    body {
+      min-width: 320px;
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, transparent 49.92%, rgb(255 255 255 / 2%) 50%, transparent 50.08%),
+        var(--paper);
+    }
+
+    .shell {
+      width: min(1740px, calc(100% - 48px));
+      margin: 0 auto;
+      padding: 46px 0 70px;
+    }
+
+    header {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(300px, .6fr);
+      gap: 48px;
+      align-items: end;
+      padding-bottom: 32px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .kicker {
+      margin: 0 0 11px;
+      color: var(--orange);
+      font: 700 .74rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 950px;
+      margin: 0;
+      font-family: Charter, "Iowan Old Style", Baskerville, Georgia, serif;
+      font-size: clamp(3rem, 6vw, 6.8rem);
+      font-weight: 400;
+      letter-spacing: -.055em;
+      line-height: .88;
+    }
+
+    .intro {
+      max-width: 620px;
+      margin: 22px 0 0;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.62;
+    }
+
+    .brief {
+      border-left: 2px solid var(--orange);
+      padding: 5px 0 5px 22px;
+    }
+
+    .brief h2 {
+      margin: 0 0 9px;
+      font-size: .78rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .brief p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.58;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 20px;
+      margin-top: 15px;
+      color: #c7c9cc;
+      font: 650 .69rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+
+    .legend span::before {
+      content: "";
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      margin-right: 7px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .legend .light { color: var(--green); }
+    .legend .medium { color: #f6c85f; }
+    .legend .heavy { color: #ef7373; }
+
+    .matrix-wrap {
+      overflow-x: auto;
+      margin-top: 36px;
+      border: 1px solid var(--line);
+      background: var(--line);
+      box-shadow: 0 28px 80px rgb(0 0 0 / 28%);
+    }
+
+    .matrix {
+      display: grid;
+      grid-template-columns: 255px repeat(3, minmax(300px, 1fr));
+      gap: 1px;
+      min-width: 1180px;
+      background: var(--line);
+    }
+
+    .cell {
+      min-width: 0;
+      background: var(--panel);
+    }
+
+    .column-head {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      padding: 16px 18px;
+      background: #1b1e22;
+    }
+
+    .column-head:first-child {
+      color: var(--muted);
+      font: 650 .68rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .exposure-title {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .exposure-title strong { font-size: .92rem; }
+
+    .exposure-title code {
+      color: var(--muted);
+      font: .72rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .option {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 244px;
+      padding: 20px;
+      background: #17191c;
+    }
+
+    .option.recommended {
+      background:
+        linear-gradient(145deg, rgb(255 113 56 / 12%), transparent 50%),
+        #17191c;
+    }
+
+    .number {
+      display: block;
+      margin-bottom: 11px;
+      color: var(--orange);
+      font: 700 .68rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: .12em;
+    }
+
+    .option h3 {
+      margin: 0;
+      font-size: 1.2rem;
+      letter-spacing: -.02em;
+    }
+
+    .option p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: .84rem;
+      line-height: 1.48;
+    }
+
+    .cost {
+      align-self: flex-start;
+      margin-top: 20px;
+      color: var(--green);
+      font: 700 .68rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .cost.medium { color: #f6c85f; }
+    .cost.heavy { color: #ef7373; }
+
+    .preview-cell { padding: 12px; background: #111315; }
+
+    .frame {
+      --photo-brightness: 1;
+      --backdrop-brightness: .42;
+      position: relative;
+      overflow: hidden;
+      aspect-ratio: 16 / 10;
+      background: #121416;
+      box-shadow: inset 0 0 0 1px rgb(255 255 255 / 8%);
+      contain: layout paint;
+      isolation: isolate;
+    }
+
+    .frame.exposure-dark {
+      --photo-brightness: .45;
+      --backdrop-brightness: .25;
+    }
+
+    .frame.exposure-bright {
+      --photo-brightness: 1.45;
+      --backdrop-brightness: .54;
+    }
+
+    .backdrop,
+    .hash-art {
+      position: absolute;
+      inset: 0;
+    }
+
+    .backdrop svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+      filter: brightness(var(--backdrop-brightness)) saturate(.72);
+    }
+
+    .portrait {
+      position: absolute;
+      z-index: 3;
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      width: 48%;
+      transform: translateX(-50%);
+      background: #18212b;
+      box-shadow: 0 0 0 1px rgb(255 255 255 / 12%), 0 0 30px rgb(0 0 0 / 26%);
+    }
+
+    .portrait svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+      filter: brightness(var(--photo-brightness));
+    }
+
+    .photo-caption {
+      position: absolute;
+      z-index: 5;
+      right: 11px;
+      bottom: 9px;
+      color: white;
+      font-size: clamp(.55rem, .75vw, .78rem);
+      font-weight: 700;
+      text-shadow: 0 1px 4px #000;
+    }
+
+    .frame-label {
+      position: absolute;
+      z-index: 6;
+      left: 8px;
+      bottom: 8px;
+      padding: 4px 6px;
+      background: rgb(0 0 0 / 62%);
+      color: #dedede;
+      font: 600 .55rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .type-charcoal { background: #111315; }
+
+    .type-gradient {
+      background:
+        radial-gradient(ellipse at center, #353a3f 0%, #24282c 33%, #101214 76%, #08090a 100%);
+    }
+
+    .type-dominant.exposure-dark { background: #121821; }
+    .type-dominant.exposure-normal { background: #202f3d; }
+    .type-dominant.exposure-bright { background: #35424d; }
+
+    .type-thumbhash .hash-art {
+      transform: scale(1.08);
+      background:
+        radial-gradient(circle at 55% 72%, rgb(210 116 60 / 72%), transparent 21%),
+        radial-gradient(circle at 70% 26%, rgb(243 196 113 / 72%), transparent 28%),
+        radial-gradient(circle at 22% 38%, rgb(53 112 145 / 88%), transparent 36%),
+        linear-gradient(135deg, #142b3d, #7f6042 58%, #263f4d);
+      filter: brightness(var(--backdrop-brightness)) saturate(.8);
+    }
+
+    .type-cropped .backdrop svg {
+      transform: scale(1.03);
+    }
+
+    .type-cropped::after,
+    .type-blurred::after {
+      content: "";
+      position: absolute;
+      z-index: 2;
+      inset: 0;
+      background: rgb(6 8 10 / 34%);
+      pointer-events: none;
+    }
+
+    .type-blurred .backdrop {
+      inset: -30px;
+      filter: blur(22px);
+    }
+
+    .type-blurred .backdrop svg {
+      transform: scale(1.12);
+    }
+
+    .verdict {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 1px;
+      margin-top: 30px;
+      border: 1px solid var(--line);
+      background: var(--line);
+    }
+
+    .verdict section {
+      padding: 24px;
+      background: #17191c;
+    }
+
+    .verdict h2 {
+      margin: 0 0 8px;
+      font-size: .78rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .verdict p {
+      max-width: 760px;
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .verdict strong { color: var(--ink); }
+
+    @media (max-width: 850px) {
+      .shell { width: calc(100% - 24px); padding-top: 26px; }
+      header, .verdict { grid-template-columns: 1fr; }
+      header { gap: 28px; }
+      h1 { font-size: clamp(3rem, 17vw, 5rem); }
+      .matrix-wrap { margin-top: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <p class="kicker">ImmichFrame / letterbox study 01</p>
+        <h1>What surrounds<br>the photograph?</h1>
+        <p class="intro">The same portrait-oriented image is shown at three exposure levels on a 16:10 frame. Compare each row horizontally to see whether its letterbox remains calm around dark, balanced, and very bright photographs.</p>
+      </div>
+      <aside class="brief">
+        <h2>Frameo constraints</h2>
+        <p>The Android 6 tablet is fill-rate limited during transitions. A background that adds another photograph or a live filter can make animation less fluid.</p>
+        <div class="legend" aria-label="Rendering cost legend">
+          <span class="light">Light</span>
+          <span class="medium">Medium</span>
+          <span class="heavy">Heavy</span>
+        </div>
+      </aside>
+    </header>
+
+    <div class="matrix-wrap" role="region" aria-label="Letterbox comparison matrix" tabindex="0">
+      <div class="matrix">
+        <div class="cell column-head">Background treatment</div>
+        <div class="cell column-head"><div class="exposure-title"><strong>Dark photograph</strong><code>45% exposure</code></div></div>
+        <div class="cell column-head"><div class="exposure-title"><strong>Balanced photograph</strong><code>100% exposure</code></div></div>
+        <div class="cell column-head"><div class="exposure-title"><strong>Bright photograph</strong><code>145% exposure</code></div></div>
+
+        <article class="cell option recommended">
+          <div><span class="number">01 / RECOMMENDED</span><h3>Deep charcoal</h3><p>Neutral and visually quiet. Unlike pure black, it does not create an excessively hard boundary around darker photos.</p></div>
+          <span class="cost">Light · one fill</span>
+        </article>
+        <div class="cell preview-cell"><div class="frame type-charcoal exposure-dark"><div class="portrait"></div><span class="frame-label">#111315</span></div></div>
+        <div class="cell preview-cell"><div class="frame type-charcoal exposure-normal"><div class="portrait"></div><span class="frame-label">#111315</span></div></div>
+        <div class="cell preview-cell"><div class="frame type-charcoal exposure-bright"><div class="portrait"></div><span class="frame-label">#111315</span></div></div>
+
+        <article class="cell option">
+          <div><span class="number">02</span><h3>Dark neutral gradient</h3><p>A fixed vignette gently separates the photograph from the outer frame without borrowing color from the image.</p></div>
+          <span class="cost">Light · gradient fill</span>
+        </article>
+        <div class="cell preview-cell"><div class="frame type-gradient exposure-dark"><div class="portrait"></div><span class="frame-label">Fixed gradient</span></div></div>
+        <div class="cell preview-cell"><div class="frame type-gradient exposure-normal"><div class="portrait"></div><span class="frame-label">Fixed gradient</span></div></div>
+        <div class="cell preview-cell"><div class="frame type-gradient exposure-bright"><div class="portrait"></div><span class="frame-label">Fixed gradient</span></div></div>
+
+        <article class="cell option recommended">
+          <div><span class="number">03 / RECOMMENDED</span><h3>Darkened dominant color</h3><p>A muted blue sampled from this photograph is darkened before use. Each image gets a coordinated but restrained surround.</p></div>
+          <span class="cost">Light · one sampled color</span>
+        </article>
+        <div class="cell preview-cell"><div class="frame type-dominant exposure-dark"><div class="portrait"></div><span class="frame-label">Sampled + darkened</span></div></div>
+        <div class="cell preview-cell"><div class="frame type-dominant exposure-normal"><div class="portrait"></div><span class="frame-label">Sampled + darkened</span></div></div>
+        <div class="cell preview-cell"><div class="frame type-dominant exposure-bright"><div class="portrait"></div><span class="frame-label">Sampled + darkened</span></div></div>
+
+        <article class="cell option">
+          <div><span class="number">04</span><h3>Stretched thumbhash</h3><p>The tiny Immich placeholder becomes an abstract field of the photo’s colors. Soft and coordinated without decoding another large bitmap.</p></div>
+          <span class="cost medium">Light–medium · tiny texture</span>
+        </article>
+        <div class="cell preview-cell"><div class="frame type-thumbhash exposure-dark"><div class="hash-art"></div><div class="portrait"></div><span class="frame-label">Thumbhash field</span></div></div>
+        <div class="cell preview-cell"><div class="frame type-thumbhash exposure-normal"><div class="hash-art"></div><div class="portrait"></div><span class="frame-label">Thumbhash field</span></div></div>
+        <div class="cell preview-cell"><div class="frame type-thumbhash exposure-bright"><div class="hash-art"></div><div class="portrait"></div><span class="frame-label">Thumbhash field</span></div></div>
+
+        <article class="cell option">
+          <div><span class="number">05</span><h3>Dark cropped duplicate</h3><p>A full-screen crop of the photo sits behind the original. It is cinematic, but the GPU must draw two detailed image layers.</p></div>
+          <span class="cost heavy">Heavy · second photograph</span>
+        </article>
+        <div class="cell preview-cell"><div class="frame type-cropped exposure-dark"><div class="backdrop"></div><div class="portrait"></div><span class="frame-label">Crop + 34% veil</span></div></div>
+        <div class="cell preview-cell"><div class="frame type-cropped exposure-normal"><div class="backdrop"></div><div class="portrait"></div><span class="frame-label">Crop + 34% veil</span></div></div>
+        <div class="cell preview-cell"><div class="frame type-cropped exposure-bright"><div class="backdrop"></div><div class="portrait"></div><span class="frame-label">Crop + 34% veil</span></div></div>
+
+        <article class="cell option">
+          <div><span class="number">06</span><h3>Blurred duplicate</h3><p>The familiar media-viewer treatment. It hides detail effectively, but a live blur and second photograph are costly on this tablet.</p></div>
+          <span class="cost heavy">Heaviest · image + blur</span>
+        </article>
+        <div class="cell preview-cell"><div class="frame type-blurred exposure-dark"><div class="backdrop"></div><div class="portrait"></div><span class="frame-label">22px live blur</span></div></div>
+        <div class="cell preview-cell"><div class="frame type-blurred exposure-normal"><div class="backdrop"></div><div class="portrait"></div><span class="frame-label">22px live blur</span></div></div>
+        <div class="cell preview-cell"><div class="frame type-blurred exposure-bright"><div class="backdrop"></div><div class="portrait"></div><span class="frame-label">22px live blur</span></div></div>
+      </div>
+    </div>
+
+    <div class="verdict">
+      <section>
+        <h2>Best balance</h2>
+        <p><strong>Deep charcoal</strong> is the safest default across every exposure. <strong>Darkened dominant color</strong> has more personality while remaining inexpensive, provided the sample is always clamped to a dark luminance.</p>
+      </section>
+      <section>
+        <h2>Transition warning</h2>
+        <p>The cropped and blurred duplicates add a second full-size image—the same kind of overdraw we just removed from the slideshow transition.</p>
+      </section>
+    </div>
+  </main>
+
+  <template id="portrait-template">
+    <svg viewBox="0 0 720 960" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Illustrated portrait photograph of a person overlooking a lake">
+      <rect width="720" height="960" fill="#a8d8e3"/>
+      <circle cx="556" cy="174" r="96" fill="#fff2ba"/>
+      <path d="M0 420 130 270 246 389 392 214 545 402 650 304 720 375V570H0Z" fill="#496c76"/>
+      <path d="M0 471 146 357 274 449 441 315 579 456 720 382V591H0Z" fill="#31515d"/>
+      <rect y="492" width="720" height="468" fill="#4f97a6"/>
+      <path d="M0 595c145-35 239 10 350-12 126-25 228 29 370-11v388H0Z" fill="#397887"/>
+      <path d="M0 748c162-96 300-80 430 13 102 73 190 75 290 23v176H0Z" fill="#d6a064"/>
+      <g opacity=".68" stroke="#d9f1e9" stroke-width="4">
+        <path d="M68 548h264"/><path d="M392 630h252"/><path d="M158 664h218"/>
+      </g>
+      <ellipse cx="374" cy="606" rx="66" ry="77" fill="#573a30"/>
+      <circle cx="374" cy="570" r="48" fill="#c98a67"/>
+      <path d="M330 566c4-61 83-75 99-12-36-27-72-29-99 12Z" fill="#2c2324"/>
+      <path d="M279 822c10-150 58-217 101-217 55 0 107 85 113 217Z" fill="#d95747"/>
+      <path d="M310 666c43 25 83 26 128 0l16 57c-59 40-116 38-163 0Z" fill="#f1c56e" opacity=".78"/>
+      <path d="M0 887c163-35 309-23 452 18 102 30 186 27 268-2v57H0Z" fill="#78513b"/>
+      <text x="688" y="922" text-anchor="end" fill="white" font-family="sans-serif" font-size="28" font-weight="700">2024-08-17</text>
+    </svg>
+  </template>
+
+  <script>
+    const template = document.querySelector('#portrait-template');
+    document.querySelectorAll('.portrait, .backdrop').forEach((container) => {
+      container.append(template.content.cloneNode(true));
+    });
+  </script>
+</body>
+</html>

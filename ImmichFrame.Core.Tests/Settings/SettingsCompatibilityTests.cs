@@ -7,14 +7,16 @@ namespace ImmichFrame.Core.Tests.Settings;
 public class SettingsCompatibilityTests
 {
     [Test]
-    public void ParseSettings_ignores_properties_from_newer_or_custom_builds()
+    public void ParseSettings_parses_people_exclusions_and_ignores_unknown_properties()
     {
+        var excludedPerson = Guid.Parse("44444444-4444-4444-8444-444444444444");
         var values = new Dictionary<string, object>
         {
             ["ImmichServerUrl"] = "https://immich.example/",
             ["ApiKey"] = "test-key",
             ["ClockFontWeight"] = "Normal",
-            ["ExcludedPeople"] = new List<string>(),
+            ["LetterboxBackground"] = "Stretched thumbhash",
+            ["ExcludedPeople"] = new List<string> { excludedPerson.ToString() },
             ["Webcalendars"] = new List<string>(),
         };
 
@@ -31,6 +33,8 @@ public class SettingsCompatibilityTests
             Assert.That(settings, Is.Not.Null);
             Assert.That(settings!.ImmichServerUrl, Is.EqualTo("https://immich.example"));
             Assert.That(settings.ApiKey, Is.EqualTo("test-key"));
+            Assert.That(settings.LetterboxBackground, Is.EqualTo("Stretched thumbhash"));
+            Assert.That(settings.ExcludedPeople, Is.EqualTo(new[] { excludedPerson }));
         });
     }
 }

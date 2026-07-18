@@ -9,7 +9,14 @@
     <local:ViewLocator/>
   </Application.DataTemplates>
 
+  <Application.Resources>
+    <FontFamily x:Key="GoogleSans">avares://ImmichFrame/Assets/Fonts#Google Sans</FontFamily>
+  </Application.Resources>
+
   <Application.Styles>
     <FluentTheme />
+    <Style Selector="TextBlock">
+      <Setter Property="FontFamily" Value="{StaticResource GoogleSans}" />
+    </Style>
   </Application.Styles>
 </Application>

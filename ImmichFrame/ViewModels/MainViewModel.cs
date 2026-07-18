@@ -12,18 +12,19 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 
 namespace ImmichFrame.ViewModels;
 
-public partial class MainViewModel : NavigatableViewModelBase
+public partial class MainViewModel : NavigatableViewModelBase, IDisposable
 {
 
     public bool TimerEnabled = false;
-    private AssetResponseDto? LastAsset;
     private AssetResponseDto? CurrentAsset;
     private PreloadedAsset? NextAsset;
+    private readonly NavigationHistory<AssetResponseDto> assetHistory = new(100);
     private IImmichFrameLogic _immichLogic;
     private CultureInfo culture;
     System.Threading.Timer? timerImageSwitcher;
@@ -32,6 +33,12 @@ public partial class MainViewModel : NavigatableViewModelBase
     System.Threading.Timer? timerZoom;
     private bool zoomIncreasing = true;
     private DateTime lastZoomTime = DateTime.MinValue;
+    private readonly SemaphoreSlim imageChangeGate = new(1, 1);
+    private readonly SemaphoreSlim preloadGate = new(1, 1);
+    private UiImage? retainedImage;
+    private bool disposed;
+    private const int FrameWidth = 1280;
+    private const int FrameHeight = 800;
 
 
     public ICommand NextImageCommand { get; set; }
@@ -63,12 +70,14 @@ public partial class MainViewModel : NavigatableViewModelBase
             if (settings == null)
                 throw new SettingsNotValidException("Settings could not be parsed.");
 
-            // Perform async initialization tasks
-            await Task.Run(() => _immichLogic.DeleteAndCreateImmichFrameAlbum());
-            await ShowNextImage();
+            if (settings.UseImmichFrameAlbum)
+            {
+                await Task.Run(() => _immichLogic.DeleteAndCreateImmichFrameAlbum());
+            }
 
             TimerEnabled = true;
-            timerImageSwitcher = new System.Threading.Timer(NextImageTick, null, 0, settings.Interval * 1000);
+            await Task.Run(() => ShowNextImage());
+            timerImageSwitcher = new System.Threading.Timer(NextImageTick, null, settings.Interval * 1000, settings.Interval * 1000);
             if (settings.ShowClock)
             {
                 timerLiveTime = new System.Threading.Timer(LiveTimeTick, null, 0, 1 * 1000); //every second
@@ -79,18 +88,14 @@ public partial class MainViewModel : NavigatableViewModelBase
             }
             if (Settings.ImageZoom)
             {
-                timerZoom = new System.Threading.Timer(ZoomTick, null, 0, 30); //every 10ms
+                timerZoom = new System.Threading.Timer(ZoomTick, null, 0, 100);
             }
             isInitialized = true;
         }
     }
     public void SetImage(Bitmap image)
     {
-        Images = new UiImage
-        {
-            Image = image,
-            ImageStretch = StretchHelper.FromString(Settings.ImageStretch),
-        };
+        Images = CreateUiImage(image);
     }
 
     public async Task SetImage(PreloadedAsset asset)
@@ -99,19 +104,17 @@ public partial class MainViewModel : NavigatableViewModelBase
     }
     public async Task SetImage(AssetResponseDto asset, Stream? preloadedAsset = null)
     {
-        var thumbHash = asset.ThumbhashImage;
-        if (thumbHash == null)
-            return;
-
-        using (Stream tmbStream = thumbHash)
         using (Stream imgStream = preloadedAsset ?? await asset.ServeImage(_immichLogic))
         {
-            Images = new UiImage
+            Bitmap? thumbhashImage = null;
+            if (Settings.LetterboxBackground == LetterboxBackgroundOptions.StretchedThumbhash)
             {
-                Image = new Bitmap(imgStream),
-                ThumbhashImage = new Bitmap(tmbStream),
-                ImageStretch = StretchHelper.FromString(Settings.ImageStretch),
-            };
+                using var thumbhashStream = asset.ThumbhashImage;
+                if (thumbhashStream != null)
+                    thumbhashImage = new Bitmap(thumbhashStream);
+            }
+
+            Images = CreateUiImage(DecodeForFrame(imgStream, asset), thumbhashImage);
 
             ImageDate = asset?.LocalDateTime.ToString(Settings.PhotoDateFormat, culture) ?? string.Empty;
             ImageDesc = asset?.ImageDesc ?? string.Empty;
@@ -138,7 +141,7 @@ public partial class MainViewModel : NavigatableViewModelBase
             {
                 return;
             }
-            ImageScale += zoomIncreasing ? 0.001 : -0.001;
+            ImageScale += zoomIncreasing ? 0.0033 : -0.0033;
 
             if (ImageScale >= 1.25)
             {
@@ -158,7 +161,8 @@ public partial class MainViewModel : NavigatableViewModelBase
     private void ShowSplash()
     {
         var uri = new Uri("avares://ImmichFrame/Assets/Immich.png");
-        var bitmap = new Bitmap(AssetLoader.Open(uri));
+        using var stream = AssetLoader.Open(uri);
+        var bitmap = new Bitmap(stream);
         SetImage(bitmap);
     }
 
@@ -178,9 +182,13 @@ public partial class MainViewModel : NavigatableViewModelBase
             WeatherTemperature = $"{weather.Temperature.ToString("F1")}{weather.Unit}";
             WeatherCurrent = weather.Description;
             var iconId = weather.IconId;
-            WeatherImage = new Bitmap(AssetLoader.Open(AssetLoader.Exists(new Uri($"avares://ImmichFrame/Assets/WeatherIcons/{iconId}.png"))
-           ? new Uri($"avares://ImmichFrame/Assets/WeatherIcons/{iconId}.png")
-           : new Uri("avares://ImmichFrame/Assets/WeatherIcons/default.png")));
+            var iconUri = AssetLoader.Exists(new Uri($"avares://ImmichFrame/Assets/WeatherIcons/{iconId}.png"))
+                ? new Uri($"avares://ImmichFrame/Assets/WeatherIcons/{iconId}.png")
+                : new Uri("avares://ImmichFrame/Assets/WeatherIcons/default.png");
+            using var iconStream = AssetLoader.Open(iconUri);
+            var oldWeatherImage = WeatherImage;
+            WeatherImage = new Bitmap(iconStream);
+            oldWeatherImage?.Dispose();
         }
     }
     public void NavigateSettingsPageAction()
@@ -192,109 +200,202 @@ public partial class MainViewModel : NavigatableViewModelBase
     {
         ResetTimer();
         // Needs to run on another thread, android does not allow running network stuff on the main thread
-        await Task.Run(ShowNextImage);
+        await Task.Run(() => ShowNextImage(true));
     }
 
-    public async Task ShowNextImage()
+    public async Task ShowNextImage(bool force = false)
     {
+        if (disposed || (!TimerEnabled && !force) || !await imageChangeGate.WaitAsync(0))
+            return;
+
         int attempt = 0;
+        AssetResponseDto? historicalAsset = null;
+        var isNavigatingHistory = assetHistory.TryMoveNext(out historicalAsset);
 
-        while (attempt < 3)
+        try
         {
-            try
+            while (attempt < 3)
             {
-                if (TimerEnabled)
+                try
                 {
-                    LastAsset = CurrentAsset;
-
-                    if (NextAsset?.Image == null)
+                    if (isNavigatingHistory)
                     {
+                        await SetImage(historicalAsset!);
+                        CurrentAsset = historicalAsset;
+                    }
+                    else if (NextAsset?.Image == null)
+                    {
+                        NextAsset?.Dispose();
+                        NextAsset = null;
                         // Load Image if next image was not ready
                         CurrentAsset = await _immichLogic.GetNextAsset();
 
                         if (CurrentAsset != null)
                         {
                             await SetImage(CurrentAsset);
+                            assetHistory.Add(CurrentAsset);
                         }
                     }
                     else
                     {
                         // Use preloaded asset
-                        await SetImage(NextAsset);
-                        CurrentAsset = NextAsset.Asset;
+                        using var preloadedAsset = NextAsset;
                         NextAsset = null;
+                        await SetImage(preloadedAsset);
+                        CurrentAsset = preloadedAsset.Asset;
+                        assetHistory.Add(CurrentAsset);
                     }
 
-                    // Load next asset without waiting
-                    _ = Task.Run(async () =>
-                    {
-                        var asset = await _immichLogic.GetNextAsset();
-                        if (asset != null)
-                        {
-                            NextAsset = new PreloadedAsset(asset);
-                            // Preload the actual Image
-                            await NextAsset.Preload(_immichLogic);
-                        }
-                    });
-                }
+                    if (!assetHistory.CanMoveNext)
+                        _ = PreloadNextAssetAsync();
 
-                break;
-            }
-            catch (AssetNotFoundException)
-            {
-                // Do not show message and break the loop
-                break;
-            }
-            catch (Exception ex)
-            {
-                attempt++;
-                if (attempt >= 3)
+                    break;
+                }
+                catch (AssetNotFoundException)
                 {
-                    if (Settings.UnattendedMode)
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    attempt++;
+                    if (attempt >= 3)
                     {
-                        // Do not show message and break the loop
-                        break;
+                        if (Settings.UnattendedMode)
+                            break;
+
+                        Console.Error.WriteLine($"ImmichFrame image load failed: {ex}");
+                        this.Navigate(new ErrorViewModel(ex));
                     }
-                    this.Navigate(new ErrorViewModel(ex));
                 }
             }
+        }
+        finally
+        {
+            imageChangeGate.Release();
+        }
+    }
+
+    private UiImage CreateUiImage(Bitmap image, Bitmap? thumbhashImage = null)
+    {
+        var mode = Settings.LetterboxBackground;
+        return new UiImage
+        {
+            Image = image,
+            ThumbhashImage = thumbhashImage,
+            ImageStretch = StretchHelper.FromString(Settings.ImageStretch),
+            ShowDarkGradient = mode == LetterboxBackgroundOptions.DarkGradient,
+            ShowStretchedThumbhash = mode == LetterboxBackgroundOptions.StretchedThumbhash && thumbhashImage != null,
+            ShowBlurredDuplicate = mode == LetterboxBackgroundOptions.BlurredDuplicate,
+        };
+    }
+
+    private Bitmap DecodeForFrame(Stream stream, AssetResponseDto asset)
+    {
+        // The Android frame is 1280x800. Decoding phone/camera originals at
+        // their full resolution makes Skia upload and blend far more pixels
+        // than the display can show, particularly while two photos crossfade.
+        // Keep 25% headroom only when pan/zoom is enabled.
+        var targetWidth = Settings.ImageZoom ? FrameWidth * 5 / 4 : FrameWidth;
+        var targetHeight = Settings.ImageZoom ? FrameHeight * 5 / 4 : FrameHeight;
+        var sourceWidth = asset.ExifInfo?.ExifImageWidth;
+        var sourceHeight = asset.ExifInfo?.ExifImageHeight;
+
+        if (sourceWidth > 0 && sourceHeight > 0)
+        {
+            var sourceAspect = sourceWidth.Value / sourceHeight.Value;
+            var frameAspect = (double)targetWidth / targetHeight;
+
+            if (sourceAspect >= frameAspect && sourceWidth > targetWidth)
+                return Bitmap.DecodeToWidth(stream, targetWidth, BitmapInterpolationMode.MediumQuality);
+
+            if (sourceAspect < frameAspect && sourceHeight > targetHeight)
+                return Bitmap.DecodeToHeight(stream, targetHeight, BitmapInterpolationMode.MediumQuality);
+
+            return new Bitmap(stream);
+        }
+
+        // Assets without EXIF dimensions are uncommon. Height is the safer
+        // bound for portrait photos and still yields about 1200px wide for a
+        // typical landscape image.
+        return Bitmap.DecodeToHeight(stream, targetHeight, BitmapInterpolationMode.MediumQuality);
+    }
+
+    private async Task PreloadNextAssetAsync()
+    {
+        if (disposed || NextAsset != null || !await preloadGate.WaitAsync(0))
+            return;
+
+        try
+        {
+            var asset = await _immichLogic.GetNextAsset();
+            if (asset == null || disposed)
+                return;
+
+            var preloadedAsset = new PreloadedAsset(asset);
+            await preloadedAsset.Preload(_immichLogic);
+            if (disposed)
+            {
+                preloadedAsset.Dispose();
+                return;
+            }
+
+            NextAsset?.Dispose();
+            NextAsset = preloadedAsset;
+        }
+        catch
+        {
+            // Preloading is an optimization; the next foreground load will retry.
+        }
+        finally
+        {
+            preloadGate.Release();
         }
     }
 
     public async Task PreviousImageAction()
     {
-        if (!ImagePaused)
-        {
-            ResetTimer();
-            // Needs to run on another thread, android does not allow running network stuff on the main thread
-            await Task.Run(ShowPreviousImage);
-        }
+        ResetTimer();
+        // Needs to run on another thread, android does not allow running network stuff on the main thread
+        await Task.Run(ShowPreviousImage);
     }
     public async Task ShowPreviousImage()
     {
+        if (disposed || !await imageChangeGate.WaitAsync(0))
+            return;
+
+        if (!assetHistory.TryMovePrevious(out var previousAsset))
+        {
+            imageChangeGate.Release();
+            return;
+        }
+
         int attempt = 0;
 
-        while (attempt < 3)
+        try
         {
-            try
+            while (attempt < 3)
             {
-                if (LastAsset != null)
+                try
                 {
-                    TimerEnabled = false;
-                    await SetImage(LastAsset);
-                    TimerEnabled = true;
-                }
+                    await SetImage(previousAsset!);
+                    CurrentAsset = previousAsset;
 
-                break;
-            }
-            catch (Exception ex)
-            {
-                attempt++;
-                if (attempt >= 3)
+                    break;
+                }
+                catch (Exception ex)
                 {
-                    this.Navigate(new ErrorViewModel(ex));
+                    attempt++;
+                    if (attempt >= 3)
+                    {
+                        Console.Error.WriteLine($"ImmichFrame previous image load failed: {ex}");
+                        this.Navigate(new ErrorViewModel(ex));
+                    }
                 }
             }
+        }
+        finally
+        {
+            imageChangeGate.Release();
         }
     }
     public void PauseImageAction()
@@ -305,18 +406,47 @@ public partial class MainViewModel : NavigatableViewModelBase
     {
         ImagePaused = !ImagePaused;
         TimerEnabled = !ImagePaused;
+        if (ImagePaused)
+        {
+            timerImageSwitcher?.Change(Timeout.Infinite, Timeout.Infinite);
+            timerZoom?.Change(Timeout.Infinite, Timeout.Infinite);
+        }
+        else
+        {
+            ResetTimer();
+            timerZoom?.Change(0, 100);
+        }
     }
     public void ResetTimer()
     {
-        timerImageSwitcher?.Change(Settings.Interval * 1000, Settings.Interval * 1000);
+        if (!disposed && !ImagePaused)
+            timerImageSwitcher?.Change(Settings.Interval * 1000, Settings.Interval * 1000);
     }
 
     public void ExitApp()
     {
+        Dispose();
+        Environment.Exit(0);
+    }
+
+    public void Dispose()
+    {
+        if (disposed)
+            return;
+
+        disposed = true;
+        TimerEnabled = false;
         timerImageSwitcher?.Dispose();
         timerLiveTime?.Dispose();
         timerWeather?.Dispose();
-        Environment.Exit(0);
+        timerZoom?.Dispose();
+        NextAsset?.Dispose();
+        NextAsset = null;
+        Images = null;
+        retainedImage?.Dispose();
+        retainedImage = null;
+        WeatherImage?.Dispose();
+        WeatherImage = null;
     }
 
     [ObservableProperty]
@@ -329,6 +459,7 @@ public partial class MainViewModel : NavigatableViewModelBase
     private string? imageDesc;
     [ObservableProperty]
     private string? imageLocation;
+    public bool IsImageLocationVisible => Settings.ShowImageLocation && !string.IsNullOrWhiteSpace(ImageLocation);
     [ObservableProperty]
     private double imageScale = 1.0;
     [ObservableProperty]
@@ -341,9 +472,20 @@ public partial class MainViewModel : NavigatableViewModelBase
     private Bitmap? weatherImage;
     [ObservableProperty]
     private bool imagePaused = false;
+
+    partial void OnImagesChanged(UiImage? oldValue, UiImage? newValue)
+    {
+        retainedImage?.Dispose();
+        retainedImage = oldValue;
+    }
+
+    partial void OnImageLocationChanged(string? value)
+    {
+        OnPropertyChanged(nameof(IsImageLocationVisible));
+    }
 }
 
-public class PreloadedAsset
+public class PreloadedAsset : IDisposable
 {
     public AssetResponseDto Asset { get; }
     private Stream? _image;
@@ -355,7 +497,14 @@ public class PreloadedAsset
 
     public async Task Preload(IImmichFrameLogic logic)
     {
+        _image?.Dispose();
         _image = await Asset.ServeImage(logic);
+    }
+
+    public void Dispose()
+    {
+        _image?.Dispose();
+        _image = null;
     }
 }
 public static class StretchHelper

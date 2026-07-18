@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <AndroidPackageFormat>apk</AndroidPackageFormat>
     <RunAOTCompilation>true</RunAOTCompilation>
+    <RuntimeIdentifier>android-arm</RuntimeIdentifier>
   </PropertyGroup>  
 
   <ItemGroup>

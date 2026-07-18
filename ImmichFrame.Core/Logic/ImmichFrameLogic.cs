@@ -2,6 +2,7 @@
 using ImmichFrame.Core.Helpers;
 using ImmichFrame.Core.Interfaces;
 using ImmichFrame.Core.Exceptions;
+using ImmichFrame.Core.Models;
 using System.Data;
 using OpenWeatherMap.Models;
 using OpenWeatherMap;
@@ -22,13 +23,35 @@ namespace ImmichFrame.Core.Logic
         private static AlbumResponseDto immichFrameAlbum = new AlbumResponseDto();
 
 
-        private Task<IEnumerable<Guid>> _excludedAlbumAssets;
-        private Task<IEnumerable<Guid>> ExcludedAlbumAssets
+        private Task<HashSet<Guid>>? _excludedAssets;
+        private DateTime lastExcludedAssetRefresh;
+        private Task<HashSet<Guid>>? _excludedAlbumAssets;
+        private DateTime lastExcludedAlbumAssetRefresh;
+        private Task<HashSet<Guid>> ExcludedAssets
         {
             get
             {
-                if(_excludedAlbumAssets == null)
+                TimeSpan timeSinceRefresh = DateTime.Now - lastExcludedAssetRefresh;
+                if (_excludedAssets == null || timeSinceRefresh.TotalHours > _settings.RefreshAlbumPeopleInterval)
+                {
+                    lastExcludedAssetRefresh = DateTime.Now;
+                    _excludedAssets = GetExcludedAssets();
+                }
+
+                return _excludedAssets;
+            }
+        }
+
+        private Task<HashSet<Guid>> ExcludedAlbumAssets
+        {
+            get
+            {
+                TimeSpan timeSinceRefresh = DateTime.Now - lastExcludedAlbumAssetRefresh;
+                if (_excludedAlbumAssets == null || timeSinceRefresh.TotalHours > _settings.RefreshAlbumPeopleInterval)
+                {
+                    lastExcludedAlbumAssetRefresh = DateTime.Now;
                     _excludedAlbumAssets = GetExcludedAlbumAssets();
+                }
 
                 return _excludedAlbumAssets;
             }
@@ -51,12 +74,20 @@ namespace ImmichFrame.Core.Logic
 
         public async Task<AssetResponseDto> GetNextAsset()
         {
-            if ((await FilteredAssetInfos) != null)
+            // People-only selection is best handled from a random batch. Building a
+            // complete server-side asset list for every selected person is slow and
+            // memory intensive on small photo frames.
+            if ((_settings.People?.Any() ?? false) && !(_settings.Albums?.Any() ?? false) && !_settings.ShowMemories)
             {
-                return await GetRandomFilteredAsset();
+                return await GetRandomAsset() ?? throw new AssetNotFoundException();
             }
 
-            return await GetRandomAsset();
+            if ((await FilteredAssetInfos) != null)
+            {
+                return await GetRandomFilteredAsset() ?? throw new AssetNotFoundException();
+            }
+
+            return await GetRandomAsset() ?? throw new AssetNotFoundException();
         }
 
         public async Task<FileResponse> GetImage(Guid id)
@@ -69,6 +100,39 @@ namespace ImmichFrame.Core.Logic
 
                 return await immichApi.ViewAssetAsync(id, string.Empty, AssetMediaSize.Preview);
             }
+        }
+
+        public async Task<IReadOnlyList<PersonInfo>> GetPeopleAsync(CancellationToken cancellationToken = default)
+        {
+            using var client = new HttpClient();
+            client.UseApiKey(_settings.ApiKey);
+            var immichApi = new ImmichApi(_settings.ImmichServerUrl, client);
+
+            const int pageSize = 250;
+            var page = 1;
+            var people = new List<PersonInfo>();
+            var configuredPeople = (_settings.People ?? new List<Guid>())
+                .Concat(_settings.ExcludedPeople ?? new List<Guid>())
+                .ToHashSet();
+            bool hasNextPage;
+
+            do
+            {
+                var response = await immichApi.GetAllPeopleAsync(page, pageSize, true, cancellationToken);
+                people.AddRange(response.People
+                    .Where(person => Guid.TryParse(person.Id, out var id) &&
+                        (!string.IsNullOrWhiteSpace(person.Name) || configuredPeople.Contains(id)))
+                    .Select(person => new PersonInfo(Guid.Parse(person.Id), person.Name?.Trim() ?? string.Empty)));
+
+                hasNextPage = response.HasNextPage ?? response.People.Count == pageSize;
+                page++;
+            }
+            while (hasNextPage);
+
+            return people
+                .DistinctBy(person => person.Id)
+                .OrderBy(person => person.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
         }
 
         public async Task AddAssetToAlbum(AssetResponseDto assetToAdd)
@@ -141,7 +205,7 @@ namespace ImmichFrame.Core.Logic
                 // Exclude videos
                 list = list.Where(x => x.Type != AssetTypeEnum.VIDEO);
 
-                var excludedList = await ExcludedAlbumAssets;
+                var excludedList = await ExcludedAssets;
 
                 // Exclude assets if configured
                 if (excludedList.Any())
@@ -214,7 +278,19 @@ namespace ImmichFrame.Core.Logic
 
             return allAssets;
         }
-        private async Task<IEnumerable<Guid>> GetExcludedAlbumAssets()
+        private async Task<HashSet<Guid>> GetExcludedAssets()
+        {
+            var excludedAssets = new HashSet<Guid>(await ExcludedAlbumAssets);
+
+            if (_settings.ExcludedPeople?.Any() ?? false)
+            {
+                excludedAssets.UnionWith((await GetPeopleAssets(_settings.ExcludedPeople)).Select(x => Guid.Parse(x.Id)));
+            }
+
+            return excludedAssets;
+        }
+
+        private async Task<HashSet<Guid>> GetExcludedAlbumAssets()
         {
             using var client = new HttpClient();
 
@@ -228,9 +304,14 @@ namespace ImmichFrame.Core.Logic
                 allAssets.AddRange(await GetAlbumAssets(albumId, immichApi));
             }
 
-            return allAssets.Select(x=>Guid.Parse(x.Id));
+            return allAssets.Select(x => Guid.Parse(x.Id)).ToHashSet();
         }
         private async Task<IEnumerable<AssetResponseDto>> GetPeopleAssets()
+        {
+            return await GetPeopleAssets(_settings.People!);
+        }
+
+        private async Task<IEnumerable<AssetResponseDto>> GetPeopleAssets(IEnumerable<Guid> personIds)
         {
             using (var client = new HttpClient())
             {
@@ -239,13 +320,13 @@ namespace ImmichFrame.Core.Logic
                 var immichApi = new ImmichApi(_settings.ImmichServerUrl, client);
 
                 client.UseApiKey(_settings.ApiKey);
-                foreach (var personId in _settings.People!)
+                foreach (var personId in personIds)
                 {
                     try
                     {
                         int page = 1;
                         int batchSize = 1000;
-                        int total = 0;
+                        int itemsInPage;
                         do
                         {
                             var metadataBody = new MetadataSearchDto
@@ -259,12 +340,11 @@ namespace ImmichFrame.Core.Logic
                             };
                             var personInfo = await immichApi.SearchMetadataAsync(metadataBody);
 
-                            total = personInfo.Assets.Total;
-
                             allAssets.AddRange(personInfo.Assets.Items);
+                            itemsInPage = personInfo.Assets.Items.Count;
                             page++;
                         }
-                        while (total == batchSize);
+                        while (itemsInPage == batchSize);
                     }
                     catch (ApiException ex)
                     {
@@ -329,6 +409,18 @@ namespace ImmichFrame.Core.Logic
 
                         randomAssets = randomAssets.Where(x => !excludedList.Contains(Guid.Parse(x.Id))).ToList();
 
+                        if (_settings.People?.Any() ?? false)
+                        {
+                            var includedPeople = _settings.People.ToHashSet();
+                            randomAssets = randomAssets.Where(asset => HasAnyPerson(asset, includedPeople)).ToList();
+                        }
+
+                        if (_settings.ExcludedPeople?.Any() ?? false)
+                        {
+                            var excludedPeople = _settings.ExcludedPeople.ToHashSet();
+                            randomAssets = randomAssets.Where(asset => !HasAnyPerson(asset, excludedPeople)).ToList();
+                        }
+
                         RandomAssetList.AddRange(randomAssets);
 
                         return await GetRandomAsset();
@@ -341,6 +433,11 @@ namespace ImmichFrame.Core.Logic
             }
 
             return null;
+        }
+
+        private static bool HasAnyPerson(AssetResponseDto asset, HashSet<Guid> people)
+        {
+            return asset.People?.Any(person => Guid.TryParse(person.Id, out var personId) && people.Contains(personId)) ?? false;
         }
 
         public Task<IWeather?> GetWeather()

@@ -45,14 +45,14 @@ public partial class MainView : BaseView
         }
         catch (Exception ex)
         {
+            Console.Error.WriteLine($"ImmichFrame initialization failed: {ex}");
             _viewModel!.Navigate(new ErrorViewModel(ex));
         }
     }
 
     public override void Dispose()
     {
-        if (_viewModel != null)
-            _viewModel.TimerEnabled = false;
+        _viewModel?.Dispose();
 
         base.Dispose();
     }

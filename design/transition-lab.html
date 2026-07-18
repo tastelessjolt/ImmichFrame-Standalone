@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ImmichFrame — Low-power transition lab</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #f4f1e8;
+      --muted: #aaa69c;
+      --line: #34332f;
+      --panel: #181816;
+      --panel-2: #20201d;
+      --accent: #ff7a3d;
+      --good: #b8e986;
+      --duration: 360ms;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      background:
+        radial-gradient(circle at 82% 0%, rgb(255 122 61 / 9%), transparent 32rem),
+        #10100f;
+      color: var(--ink);
+    }
+
+    button, input { font: inherit; }
+
+    button:focus-visible, input:focus-visible {
+      outline: 3px solid rgb(255 122 61 / 55%);
+      outline-offset: 3px;
+    }
+
+    .shell {
+      width: min(1480px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 42px 0 64px;
+    }
+
+    header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 32px;
+      align-items: end;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--accent);
+      font-size: .76rem;
+      font-weight: 750;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 850px;
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(2.6rem, 5vw, 5.6rem);
+      font-weight: 400;
+      letter-spacing: -.045em;
+      line-height: .95;
+    }
+
+    .lede {
+      max-width: 720px;
+      margin: 20px 0 0;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.6;
+    }
+
+    .toolbar {
+      display: grid;
+      gap: 12px;
+      min-width: 250px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      background: rgb(24 24 22 / 88%);
+    }
+
+    .toolbar label {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      color: var(--muted);
+      font-size: .82rem;
+    }
+
+    .toolbar output { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+    input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+    .primary, .replay {
+      min-height: 48px;
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #21110a;
+      cursor: pointer;
+      font-weight: 780;
+    }
+
+    .primary:hover, .replay:hover { filter: brightness(1.08); }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1px;
+      margin-top: 36px;
+      border: 1px solid var(--line);
+      background: var(--line);
+    }
+
+    article {
+      min-width: 0;
+      padding: 22px;
+      background: var(--panel);
+    }
+
+    article.recommended {
+      background: linear-gradient(145deg, rgb(255 122 61 / 8%), transparent 55%), var(--panel);
+    }
+
+    .article-head {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: start;
+      margin-bottom: 16px;
+    }
+
+    .index {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--accent);
+      font: 700 .72rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: .1em;
+    }
+
+    h2 { margin: 0; font-size: 1.22rem; letter-spacing: -.015em; }
+
+    .tag {
+      padding-top: 4px;
+      color: var(--good);
+      font-size: .72rem;
+      font-weight: 750;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .stage {
+      position: relative;
+      overflow: hidden;
+      aspect-ratio: 16 / 10;
+      background: #050505;
+      contain: layout paint;
+      isolation: isolate;
+    }
+
+    .scene {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      will-change: opacity, transform;
+    }
+
+    .scene svg { display: block; width: 100%; height: 100%; }
+    .scene-b { opacity: 0; }
+
+    .caption {
+      position: absolute;
+      z-index: 5;
+      right: 14px;
+      bottom: 12px;
+      padding: 5px 8px;
+      background: rgb(0 0 0 / 64%);
+      color: #fff;
+      font-size: .68rem;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .fade-black.running .scene-a { animation: bridge-out var(--duration) cubic-bezier(.4, 0, .6, 1) both; }
+    .fade-black.running .scene-b { animation: bridge-in var(--duration) cubic-bezier(.4, 0, .2, 1) both; }
+    @keyframes bridge-out { 0% { opacity: 1 } 44%, 100% { opacity: 0 } }
+    @keyframes bridge-in { 0%, 52% { opacity: 0 } 100% { opacity: 1 } }
+
+    .crossfade.running .scene-a { animation: cross-out var(--duration) linear both; }
+    .crossfade.running .scene-b { animation: cross-in var(--duration) linear both; }
+    @keyframes cross-out { to { opacity: 0 } }
+    @keyframes cross-in { to { opacity: 1 } }
+
+    .slide.running .scene-a { animation: slide-out var(--duration) cubic-bezier(.2, .65, .3, 1) both; }
+    .slide.running .scene-b { animation: slide-in var(--duration) cubic-bezier(.2, .65, .3, 1) both; }
+    @keyframes slide-out { to { opacity: .15; transform: translateX(-2%) scale(1.015) } }
+    @keyframes slide-in { from { opacity: 0; transform: translateX(2%) scale(1.015) } to { opacity: 1; transform: none } }
+
+    .cut.running .scene-a { opacity: 0; }
+    .cut.running .scene-b { opacity: 1; }
+
+    .details {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 18px;
+      margin-top: 16px;
+      align-items: end;
+    }
+
+    .details p { margin: 0; color: var(--muted); font-size: .9rem; line-height: 1.55; }
+
+    .facts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      margin: 12px 0 0;
+      padding: 0;
+      list-style: none;
+      color: #d7d3ca;
+      font: 650 .72rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+      text-transform: uppercase;
+    }
+
+    .facts strong { color: var(--good); font-weight: inherit; }
+
+    .replay {
+      min-width: 92px;
+      background: transparent;
+      color: var(--accent);
+    }
+
+    .verdict {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      margin-top: 32px;
+      border: 1px solid var(--line);
+      background: var(--line);
+    }
+
+    .verdict section { padding: 24px; background: var(--panel-2); }
+    .verdict h3 { margin: 0 0 9px; font-size: .9rem; text-transform: uppercase; letter-spacing: .08em; }
+    .verdict p { margin: 0; color: var(--muted); line-height: 1.55; }
+
+    @media (max-width: 850px) {
+      .shell { width: min(100% - 24px, 680px); padding-top: 24px; }
+      header, .grid, .verdict { grid-template-columns: 1fr; }
+      .toolbar { width: 100%; }
+      article { padding: 14px; }
+      h1 { font-size: clamp(2.5rem, 14vw, 4.5rem); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .scene { animation-duration: 1ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <p class="eyebrow">ImmichFrame / transition study 01</p>
+        <h1>Clean motion,<br>small hardware.</h1>
+        <p class="lede">Four offline simulations for the 1280×800 Android 6 frame. The app itself still uses its existing crossfade; this page is only a decision tool for a possible follow-up.</p>
+      </div>
+      <div class="toolbar" aria-label="Transition controls">
+        <label for="duration">Demo duration <output id="duration-output">360 ms</output></label>
+        <input id="duration" type="range" min="120" max="900" step="20" value="360">
+        <button class="primary" id="replay-all" type="button">Replay all transitions</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <article class="recommended">
+        <div class="article-head">
+          <div><span class="index">OPTION 01</span><h2>Fade through black</h2></div>
+          <span class="tag">Recommended</span>
+        </div>
+        <div class="stage fade-black" data-transition>
+          <div class="scene scene-a" data-scene="a"></div>
+          <div class="scene scene-b" data-scene="b"></div>
+          <span class="caption">Sequential opacity</span>
+        </div>
+        <div class="details">
+          <div>
+            <p>The old photo fades out, the image swaps at black, then the new photo fades in. It feels intentional and avoids blending two detailed photos at the same instant.</p>
+            <ul class="facts"><li><strong>Lowest</strong> blend load</li><li>One visible photo</li><li>Modern / calm</li></ul>
+          </div>
+          <button class="replay" type="button">Replay</button>
+        </div>
+      </article>
+
+      <article>
+        <div class="article-head">
+          <div><span class="index">OPTION 02</span><h2>Short crossfade</h2></div>
+          <span class="tag">Familiar</span>
+        </div>
+        <div class="stage crossfade" data-transition>
+          <div class="scene scene-a" data-scene="a"></div>
+          <div class="scene scene-b" data-scene="b"></div>
+          <span class="caption">Simultaneous opacity</span>
+        </div>
+        <div class="details">
+          <div>
+            <p>The current visual language, shortened to roughly 180–300 ms. It reduces the time spent blending two textures, but still requires both photos every transition frame.</p>
+            <ul class="facts"><li>Medium blend load</li><li>Two visible photos</li><li>Least change</li></ul>
+          </div>
+          <button class="replay" type="button">Replay</button>
+        </div>
+      </article>
+
+      <article>
+        <div class="article-head">
+          <div><span class="index">OPTION 03</span><h2>Subtle directional slide</h2></div>
+          <span class="tag">Expressive</span>
+        </div>
+        <div class="stage slide" data-transition>
+          <div class="scene scene-a" data-scene="a"></div>
+          <div class="scene scene-b" data-scene="b"></div>
+          <span class="caption">Opacity + 2% shift</span>
+        </div>
+        <div class="details">
+          <div>
+            <p>A very small horizontal shift gives next/previous a direction. It remains tasteful, but asks the GPU to blend and transform both photos, so it is not the safest frame default.</p>
+            <ul class="facts"><li>Medium–high load</li><li>Two photo layers</li><li>Clear direction</li></ul>
+          </div>
+          <button class="replay" type="button">Replay</button>
+        </div>
+      </article>
+
+      <article>
+        <div class="article-head">
+          <div><span class="index">OPTION 04</span><h2>Clean cut</h2></div>
+          <span class="tag">Fastest</span>
+        </div>
+        <div class="stage cut" data-transition>
+          <div class="scene scene-a" data-scene="a"></div>
+          <div class="scene scene-b" data-scene="b"></div>
+          <span class="caption">No animation</span>
+        </div>
+        <div class="details">
+          <div>
+            <p>An immediate swap has no animation cost and is appropriate for reduced-motion mode. It is the most reliable option, though less gentle for an ambient photo frame.</p>
+            <ul class="facts"><li><strong>Minimum</strong> load</li><li>One photo layer</li><li>Reduced motion</li></ul>
+          </div>
+          <button class="replay" type="button">Replay</button>
+        </div>
+      </article>
+    </div>
+
+    <div class="verdict">
+      <section>
+        <h3>Best default for this Frameo</h3>
+        <p>Fade through black at 300–450 ms. It hides the texture swap, avoids simultaneous image blending, and still reads as a deliberate transition rather than a performance concession.</p>
+      </section>
+      <section>
+        <h3>What to avoid</h3>
+        <p>Blur, zoom-heavy wipes, and long dissolves. They add filter or overdraw cost without improving the photograph, and frame drops remain visible for longer.</p>
+      </section>
+    </div>
+  </main>
+
+  <template id="scene-a-template">
+    <svg viewBox="0 0 1280 800" role="img" aria-label="Illustrated mountain lake at sunset">
+      <defs>
+        <linearGradient id="a-sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#25366b"/><stop offset=".58" stop-color="#df765b"/><stop offset="1" stop-color="#f1b66b"/></linearGradient>
+        <linearGradient id="a-water" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#ce765d"/><stop offset="1" stop-color="#182a45"/></linearGradient>
+      </defs>
+      <rect width="1280" height="800" fill="url(#a-sky)"/>
+      <circle cx="970" cy="210" r="72" fill="#ffd79a" opacity=".92"/>
+      <path d="M0 490 190 296 325 430 505 232 710 470 855 322 1040 478 1160 370 1280 485V610H0Z" fill="#263148"/>
+      <path d="M130 490 310 360 423 482 600 314 770 490 960 374 1115 493 1280 422V600H0V530Z" fill="#182737"/>
+      <rect y="530" width="1280" height="270" fill="url(#a-water)"/>
+      <path d="M0 618c170-42 280 22 450-9s290-20 430 13 270 10 400-20v198H0Z" fill="#14243a" opacity=".5"/>
+      <g stroke="#f6cf9d" opacity=".38"><path d="M720 592h390"/><path d="M790 625h270"/><path d="M848 657h164"/></g>
+    </svg>
+  </template>
+
+  <template id="scene-b-template">
+    <svg viewBox="0 0 1280 800" role="img" aria-label="Illustrated coastal road in daylight">
+      <defs>
+        <linearGradient id="b-sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#8fd4dc"/><stop offset="1" stop-color="#e7eee2"/></linearGradient>
+        <linearGradient id="b-sea" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1f8f9f"/><stop offset="1" stop-color="#62c0b2"/></linearGradient>
+      </defs>
+      <rect width="1280" height="800" fill="url(#b-sky)"/>
+      <path d="M0 370c230-54 400-18 610 18s430 20 670-58v470H0Z" fill="url(#b-sea)"/>
+      <path d="M0 510c210-108 370-87 515-2 122 71 190 62 312-20 149-101 287-103 453-28v340H0Z" fill="#c7a66a"/>
+      <path d="M0 600c235-151 415-101 565 12 114 86 214 81 340-8 139-99 244-93 375-14v210H0Z" fill="#6b7b48"/>
+      <path d="M-40 860C230 570 480 535 735 800" fill="none" stroke="#393936" stroke-width="112"/>
+      <path d="M-40 860C230 570 480 535 735 800" fill="none" stroke="#e6d8b7" stroke-width="7" stroke-dasharray="38 34"/>
+      <g fill="#315c3f"><circle cx="1018" cy="622" r="98"/><circle cx="1120" cy="655" r="120"/><circle cx="936" cy="684" r="88"/></g>
+    </svg>
+  </template>
+
+  <script>
+    const duration = document.querySelector('#duration');
+    const output = document.querySelector('#duration-output');
+    const stages = [...document.querySelectorAll('[data-transition]')];
+
+    document.querySelectorAll('[data-scene="a"]').forEach(el => {
+      el.append(document.querySelector('#scene-a-template').content.cloneNode(true));
+    });
+    document.querySelectorAll('[data-scene="b"]').forEach(el => {
+      el.append(document.querySelector('#scene-b-template').content.cloneNode(true));
+    });
+
+    function replay(stage) {
+      stage.classList.remove('running');
+      void stage.offsetWidth;
+      stage.classList.add('running');
+    }
+
+    function replayAll() {
+      stages.forEach((stage, index) => setTimeout(() => replay(stage), index * 90));
+    }
+
+    duration.addEventListener('input', () => {
+      document.documentElement.style.setProperty('--duration', `${duration.value}ms`);
+      output.value = `${duration.value} ms`;
+    });
+
+    document.querySelector('#replay-all').addEventListener('click', replayAll);
+    document.querySelectorAll('.replay').forEach(button => {
+      button.addEventListener('click', () => replay(button.closest('article').querySelector('[data-transition]')));
+    });
+
+    replayAll();
+  </script>
+</body>
+</html>

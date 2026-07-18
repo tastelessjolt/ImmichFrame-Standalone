@@ -36,6 +36,7 @@ namespace ImmichFrame.Models
         public string ImmichServerUrl { get; set; } = string.Empty;
         public string ApiKey { get; set; } = string.Empty;
         public string ImageStretch { get; set; } = "Uniform";
+        public string LetterboxBackground { get; set; } = "Dark gradient";
         public string Margin { get; set; } = "0,0,0,0";
         public int Interval { get; set; } = 45;
         public double TransitionDuration { get; set; } = 1;
@@ -45,6 +46,7 @@ namespace ImmichFrame.Models
         public List<Guid> Albums { get; set; } = new List<Guid>();
         public List<Guid> ExcludedAlbums { get; set; } = new List<Guid>();
         public List<Guid> People { get; set; } = new List<Guid>();
+        public List<Guid> ExcludedPeople { get; set; } = new List<Guid>();
         public int RefreshAlbumPeopleInterval { get; set; } = 12;
         [JsonIgnore]
         public bool UseImmichFrameAlbum => !string.IsNullOrWhiteSpace(ImmichFrameAlbumName);
@@ -213,9 +215,16 @@ namespace ImmichFrame.Models
                             throw new SettingsNotValidException($"Value of '{SettingsValue.Key}' is not valid. ('{value}')");
                         property.SetValue(settings, value);
                         break;
+                    case "LetterboxBackground":
+                        var letterboxBackground = value.ToString();
+                        if (!LetterboxBackgroundOptions.All.Contains(letterboxBackground))
+                            throw new SettingsNotValidException($"Value of '{SettingsValue.Key}' is not valid. ('{value}')");
+                        property.SetValue(settings, letterboxBackground);
+                        break;
                     case "Albums":
                     case "ExcludedAlbums":
                     case "People":
+                    case "ExcludedPeople":
                         var list = new List<Guid>();
                         foreach (var item in (List<string>)(SettingsValue.Value ?? new()))
                         {
@@ -328,6 +337,7 @@ namespace ImmichFrame.Models
                 ImmichServerUrl = "",
                 ApiKey = "",
                 ImageStretch = "Uniform",
+                LetterboxBackground = LetterboxBackgroundOptions.DarkGradient,
                 ImageZoom = false,
                 Margin = "0,0,0,0",
                 Interval = 8,
@@ -338,6 +348,7 @@ namespace ImmichFrame.Models
                 Albums = new List<Guid>(),
                 ExcludedAlbums = new List<Guid>(),
                 People = new List<Guid>(),
+                ExcludedPeople = new List<Guid>(),
                 RefreshAlbumPeopleInterval = 12,
                 ImmichFrameAlbumName = "",
                 ShowClock = true,
@@ -362,5 +373,19 @@ namespace ImmichFrame.Models
             };
             return defaultSettings;
         }
+    }
+
+    public static class LetterboxBackgroundOptions
+    {
+        public const string DarkGradient = "Dark gradient";
+        public const string StretchedThumbhash = "Stretched thumbhash";
+        public const string BlurredDuplicate = "Blurred duplicate";
+
+        public static readonly IReadOnlyList<string> All = new[]
+        {
+            DarkGradient,
+            StretchedThumbhash,
+            BlurredDuplicate,
+        };
     }
 }
