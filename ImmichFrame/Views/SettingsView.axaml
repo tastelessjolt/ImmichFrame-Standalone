@@ -312,6 +312,10 @@
             <TextBox Text="{Binding Settings.UnitSystem}" Watermark="metric or imperial" />
             <TextBlock Classes="fieldLabel" Text="Latitude, longitude" />
             <TextBox Text="{Binding Settings.WeatherLatLong}" />
+            <CheckBox Content="Sleep at midnight and wake at sunrise"
+                      IsChecked="{Binding Settings.SunriseScreenScheduleEnabled}" />
+            <TextBlock Classes="supporting"
+                       Text="Uses these coordinates and the device time zone. Sunrise is calculated locally without another weather request." />
             <TextBlock Classes="fieldLabel" Text="Language" />
             <TextBox Text="{Binding Settings.Language}" />
           </StackPanel>

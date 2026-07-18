@@ -70,6 +70,7 @@ namespace ImmichFrame.Models
         public int WeatherFontSize { get; set; } = 36;
         public string? UnitSystem { get; set; } = OpenWeatherMap.UnitSystem.Imperial;
         public string? WeatherLatLong { get; set; } = "40.7128,74.0060";
+        public bool SunriseScreenScheduleEnabled { get; set; } = true;
         [JsonIgnore]
         public float WeatherLat => !string.IsNullOrWhiteSpace(WeatherLatLong) ? float.Parse(WeatherLatLong!.Split(',')[0]) : 0f;
         [JsonIgnore]
@@ -97,6 +98,8 @@ namespace ImmichFrame.Models
         }
 
         private static Settings? currentSettings;
+        public static event Action? SettingsSaved;
+
         public static Settings CurrentSettings
         {
             get
@@ -259,6 +262,7 @@ namespace ImmichFrame.Models
                     case "ShowImageDesc":
                     case "ShowImageLocation":
                     case "ShowWeatherDescription":
+                    case "SunriseScreenScheduleEnabled":
                     case "UnattendedMode":
                     case "ImageZoom":
                         if (!bool.TryParse(value.ToString(), out var boolValue))
@@ -312,6 +316,8 @@ namespace ImmichFrame.Models
         {
             var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(Settings.JsonSettingsPath, json);
+            currentSettings = settings;
+            SettingsSaved?.Invoke();
         }
         public static async Task BackupSettings(IStorageFile file)
         {
@@ -368,6 +374,7 @@ namespace ImmichFrame.Models
                 WeatherFontSize = 36,
                 UnitSystem = "imperial",
                 WeatherLatLong = "40.7128,74.0060",
+                SunriseScreenScheduleEnabled = true,
                 Language = "en",
                 UnattendedMode = false
             };

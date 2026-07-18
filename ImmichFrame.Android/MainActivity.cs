@@ -4,6 +4,7 @@ using Android.OS;
 using Android.Views;
 using Avalonia;
 using Avalonia.Android;
+using AppSettings = ImmichFrame.Models.Settings;
 
 namespace ImmichFrame.Android;
 
@@ -21,7 +22,25 @@ public class MainActivity : AvaloniaMainActivity<App>
         base.OnCreate(savedInstanceState);
         Window!.AddFlags(WindowManagerFlags.KeepScreenOn);
         Window!.AddFlags(WindowManagerFlags.Fullscreen);
+        AppSettings.SettingsSaved += HandleSettingsSaved;
+        ScreenScheduleScheduler.Schedule(this, applyCurrentState: true);
     }
+
+    protected override void OnResume()
+    {
+        base.OnResume();
+        ScreenPowerController.ReleaseWakeLock();
+    }
+
+    protected override void OnDestroy()
+    {
+        AppSettings.SettingsSaved -= HandleSettingsSaved;
+        base.OnDestroy();
+    }
+
+    private void HandleSettingsSaved() =>
+        ScreenScheduleScheduler.Schedule(this, applyCurrentState: true);
+
     protected override AppBuilder CustomizeAppBuilder(AppBuilder builder)
     {
         return base.CustomizeAppBuilder(builder);

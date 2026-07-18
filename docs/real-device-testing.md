@@ -15,7 +15,7 @@ This guide documents the maintainer's Android 6 Frameo test device and the exact
 | App package | `io.github.tastelessjolt.immichframestandalone` |
 | Activity | `io.github.tastelessjolt.immichframestandalone/.MainActivity` |
 
-The TCP/IP install and smoke-test procedure below was last verified on 2026-07-19 with `v1.0.15.0-standalone.6`.
+The TCP/IP install, boot scheduling, and smoke-test procedure below was last verified on 2026-07-19 with `v1.0.15.0-standalone.9`.
 
 ## Security boundary
 
@@ -63,6 +63,67 @@ adb -s 192.168.0.7:5555 shell 'getprop ro.build.version.release; getprop ro.prod
 ```
 
 Expected values include Android `6.0.1`, ABI `armeabi-v7a`, physical size `1280x800`, and a normal ADB shell identity.
+
+## Automatic sunrise screen schedule
+
+ImmichFrame Standalone can keep the display on from local sunrise until midnight, turn it off at `00:00`, and wake it at the next sunrise. `SunriseScreenScheduleEnabled` is enabled by default and can be changed under **Weather** in the app settings.
+
+The schedule uses `WeatherLatLong` and the Android device time zone. Sunrise and sunset are calculated locally with no additional weather API request or polling. Sunset is recorded for diagnostics; the configured power transition is midnight-to-sunrise. Exact `RTC_WAKEUP` alarms are refreshed whenever the app starts or settings are saved. Standard Android devices also refresh them through the registered boot, clock, timezone, date, and package-replacement receiver; this Frameo uses the root boot hook below because its ROM rejects those background deliveries.
+
+The alarm PendingIntents open a zero-display, native Java activity rather than a broadcast receiver. This is intentional: the Frameo ROM labels background process forks as bad, but permits an activity PendingIntent to start. The native scheduler runs in the lightweight `:screen_schedule` process without loading Mono or Avalonia. At sunrise it wakes the display and starts the slideshow; at midnight it turns the display off.
+
+### Frameo boot hook
+
+This ROM also rejects third-party `BOOT_COMPLETED` receivers, and its clock starts at 1970 before network time synchronization. A device-specific root hook is therefore installed at `/system/bin/immichframe-schedule-boot.sh`. The existing `/system/bin/install-recovery.sh` invokes it synchronously as part of Android's `flash_recovery` init service. The hook waits for `sys.boot_completed=1`, waits for the year to be at least 2024, and then starts `.ScreenScheduleBootstrapActivity` without showing UI.
+
+The tracked copy of the hook is [device/frameo/immichframe-schedule-boot.sh](../device/frameo/immichframe-schedule-boot.sh). The installed files last verified on 2026-07-19 have these MD5 checksums:
+
+```text
+f94ebaf5c91c3f89c427b19fa038820d  /system/bin/install-recovery.sh
+8c2871ebfd65954358cb5a4b89bc8476  /system/bin/immichframe-schedule-boot.sh
+```
+
+The untouched original recovery script has MD5 `70cbf93d526ecd134752a8af15c95f40` and is backed up in both locations below:
+
+```text
+/data/local/immichframe-backups/install-recovery.sh.pre-immichframe-schedule
+Desktop/immichframe-app-data-backup/frameo-system-pre-schedule-20260719/install-recovery.sh
+```
+
+To remove the hook, restore only that exact backup on this exact device, delete the helper, restore ownership/permissions/SELinux context, and return `/system` to read-only:
+
+```bash
+adb -s 192.168.0.7:5555 shell "su -c '
+  mount -o remount,rw /system &&
+  cp /data/local/immichframe-backups/install-recovery.sh.pre-immichframe-schedule /system/bin/install-recovery.sh &&
+  rm -f /system/bin/immichframe-schedule-boot.sh &&
+  chown 0:0 /system/bin/install-recovery.sh &&
+  chmod 0750 /system/bin/install-recovery.sh &&
+  restorecon /system/bin/install-recovery.sh &&
+  sync &&
+  mount -o remount,ro /system
+'"
+```
+
+Do not restore this device-specific system script to another Android build. A firmware update may replace it; after an update, verify the stock script before reapplying the one-line hook.
+
+This Frameo's root access is required for Android `KEYCODE_SLEEP` and `KEYCODE_WAKEUP`. Confirm the calculated alarms and recent power operations with:
+
+```bash
+adb -s 192.168.0.7:5555 shell \
+  "dumpsys alarm | grep -A 5 -E 'immichframestandalone.action.(SLEEP|WAKE)'"
+adb -s 192.168.0.7:5555 shell \
+  "logcat -d | grep ImmichFramePower | tail -n 30"
+```
+
+For an intentional end-to-end test, these activity starts briefly turn the physical display off and back on:
+
+```bash
+adb -s 192.168.0.7:5555 shell \
+  "su -c 'am start -n io.github.tastelessjolt.immichframestandalone/.ScreenScheduleBootstrapActivity -a io.github.tastelessjolt.immichframestandalone.action.SLEEP'"
+adb -s 192.168.0.7:5555 shell \
+  "su -c 'am start -n io.github.tastelessjolt.immichframestandalone/.ScreenScheduleBootstrapActivity -a io.github.tastelessjolt.immichframestandalone.action.WAKE'"
+```
 
 ## Restore access on another computer
 

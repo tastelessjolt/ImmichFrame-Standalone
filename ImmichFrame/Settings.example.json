@@ -30,6 +30,7 @@
   "WeatherFontSize": 24,
   "UnitSystem": "imperial",
   "WeatherLatLong": "",
+  "SunriseScreenScheduleEnabled": true,
   "Language": "en",
   "UnattendedMode": false,
   "ImageZoom": true

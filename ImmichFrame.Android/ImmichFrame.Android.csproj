@@ -17,6 +17,31 @@
   </ItemGroup>
 
   <ItemGroup>
+    <AndroidJavaSource Include="Java\io\github\tastelessjolt\immichframestandalone\ScreenScheduleReceiver.java" />
+    <AndroidJavaSource Include="Java\io\github\tastelessjolt\immichframestandalone\ScreenScheduleBootstrapActivity.java" />
+  </ItemGroup>
+
+  <!--
+    The screen scheduler is deliberately pure Java and runs in its own process.
+    .NET for Android automatically adds a MonoRuntimeProvider to every declared
+    process; remove only the generated provider for this native process so boot
+    scheduling does not load the full Mono/Avalonia runtime.
+  -->
+  <Target Name="RemoveSchedulerMonoRuntimeProvider"
+          AfterTargets="_ManifestMerger"
+          BeforeTargets="_CreateBaseApk">
+    <PropertyGroup>
+      <SchedulerManifest>$(IntermediateOutputPath)android\AndroidManifest.xml</SchedulerManifest>
+      <SchedulerManifestFiltered>$(IntermediateOutputPath)android\AndroidManifest.scheduler.xml</SchedulerManifestFiltered>
+    </PropertyGroup>
+    <XslTransformation
+      XslInputPath="$(MSBuildProjectDirectory)\Build\RemoveSchedulerMonoProvider.xsl"
+      XmlInputPaths="$(SchedulerManifest)"
+      OutputPaths="$(SchedulerManifestFiltered)" />
+    <Copy SourceFiles="$(SchedulerManifestFiltered)" DestinationFiles="$(SchedulerManifest)" />
+  </Target>
+
+  <ItemGroup>
     <Folder Include="Resources\mipmap-anydpi-v26\" />
     <Folder Include="Resources\mipmap-mdpi\" />
     <Folder Include="Resources\mipmap-hdpi\" />

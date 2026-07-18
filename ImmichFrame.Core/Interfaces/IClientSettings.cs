@@ -27,6 +27,7 @@
         public string FontColor { get; set; }
         public bool ShowWeatherDescription { get; set; }
         public int WeatherFontSize { get; set; }
+        public bool SunriseScreenScheduleEnabled { get; set; }
         public bool UnattendedMode { get; set; }
         public bool ImageZoom { get; set; }
     }

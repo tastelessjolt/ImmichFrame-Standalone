@@ -97,7 +97,8 @@ The Android 6 Frameo test device is reserved at `192.168.0.7` and accepts author
 | [Weather](#weather)     | Language                   | string             | en                   | 2 digit ISO code, sets the language of the weather description.                                      |
 | [Weather](#weather)     | ShowWeatherDescription     | boolean            | true                 | Displays the description of the current weather.                                                     |
 | [Weather](#weather)     | WeatherFontSize            | int                | 36                   | \*Client only.                                                                                       |
-| [Weather](#weather)     | WeatherLatLong             | boolean            | 40.730610,-73.935242 | Set the weather location with lat/lon.                                                               |
+| [Weather](#weather)     | WeatherLatLong             | string             | 40.730610,-73.935242 | Set the weather and sunrise location with latitude/longitude.                                        |
+| [Weather](#weather)     | SunriseScreenScheduleEnabled | boolean          | true                 | Android: turn the display off at midnight and wake it at locally calculated sunrise.                 |
 | [Clock](#clock)         | ShowClock                  | boolean            | true                 | Displays the current time.                                                                           |
 | [Clock](#clock)         | ClockFontSize              | int                | 48                   | \*Client only.                                                                                       |
 | [Clock](#clock)         | ClockFormat                | string             | hh:mm                | Time format.                                                                                         |
@@ -125,6 +126,8 @@ Needs documentation
 
 ### Weather
 Weather is enabled by entering an API key. Get yours free from [OpenWeatherMap][openweathermap-url]
+
+On Android, the optional sunrise screen schedule uses `WeatherLatLong` and the device time zone. Sunrise and sunset are calculated locally without another weather request. When enabled, the display stays on from sunrise until midnight and sleeps from midnight until sunrise. The schedule refreshes when the app starts or settings are saved; standard Android also handles boot, clock, timezone, date, and app-update broadcasts. The screen power commands require root access on the Frameo device. This Frameo ROM additionally needs the documented [device-specific boot hook](docs/real-device-testing.md#frameo-boot-hook) because it rejects third-party background receivers.
 
 ### Clock
 Needs documentation

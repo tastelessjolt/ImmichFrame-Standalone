@@ -16,6 +16,7 @@ public class SettingsCompatibilityTests
             ["ApiKey"] = "test-key",
             ["ClockFontWeight"] = "Normal",
             ["LetterboxBackground"] = "Stretched thumbhash",
+            ["SunriseScreenScheduleEnabled"] = "false",
             ["ExcludedPeople"] = new List<string> { excludedPerson.ToString() },
             ["Webcalendars"] = new List<string>(),
         };
@@ -34,6 +35,7 @@ public class SettingsCompatibilityTests
             Assert.That(settings!.ImmichServerUrl, Is.EqualTo("https://immich.example"));
             Assert.That(settings.ApiKey, Is.EqualTo("test-key"));
             Assert.That(settings.LetterboxBackground, Is.EqualTo("Stretched thumbhash"));
+            Assert.That(settings.SunriseScreenScheduleEnabled, Is.False);
             Assert.That(settings.ExcludedPeople, Is.EqualTo(new[] { excludedPerson }));
         });
     }
