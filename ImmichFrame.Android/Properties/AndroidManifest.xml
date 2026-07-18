@@ -1,9 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
   android:installLocation="auto"
-  package="com.immichframe.immichframe"
-  android:versionCode="15"
-  android:versionName="1.0.15.0">
+  package="io.github.tastelessjolt.immichframestandalone"
+  android:versionCode="1"
+  android:versionName="1.0.15.0-standalone.1">
 
   <!-- Permissions -->
   <uses-permission android:name="android.permission.INTERNET" />
@@ -13,13 +13,13 @@
   <uses-feature android:name="android.software.leanback" android:required="false" />
 
   <application
-    android:label="ImmichFrame"
+    android:label="ImmichFrame Standalone"
     android:icon="@mipmap/immich_frame"
     android:banner="@mipmap/immich_banner"
     android:usesCleartextTraffic="true">
 
-    <activity android:name="com.immichframe.immichframe.MainActivity"
-              android:label="ImmichFrame"
+    <activity android:name="io.github.tastelessjolt.immichframestandalone.MainActivity"
+              android:label="ImmichFrame Standalone"
               android:launchMode="singleTop"
               android:theme="@style/MyTheme.NoActionBar"
               android:exported="true"
@@ -34,10 +34,10 @@
       </intent-filter>
     </activity>
 
-    <service android:name="com.immichframe.immichframe.ScreenSaverService"
+    <service android:name="io.github.tastelessjolt.immichframestandalone.ScreenSaverService"
              android:exported="true"
              android:icon="@mipmap/immich_frame"
-             android:label="ImmichFrame"
+             android:label="ImmichFrame Standalone"
              android:permission="android.permission.BIND_DREAM_SERVICE">
       <intent-filter>
         <action android:name="android.service.dreams.DreamService" />

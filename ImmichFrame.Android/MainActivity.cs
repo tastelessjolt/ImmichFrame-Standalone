@@ -8,10 +8,10 @@ using Avalonia.Android;
 namespace ImmichFrame.Android;
 
 [Activity(
-    Label = "ImmichFrame",
+    Label = "ImmichFrame Standalone",
     Theme = "@style/MyTheme.NoActionBar",
     Icon = "@drawable/AppIcon",
-    Name = "com.immichframe.immichframe.MainActivity",
+    Name = "io.github.tastelessjolt.immichframestandalone.MainActivity",
     MainLauncher = true,
     ConfigurationChanges = ConfigChanges.Orientation | ConfigChanges.ScreenSize | ConfigChanges.UiMode)]
 public class MainActivity : AvaloniaMainActivity<App>

@@ -1,3 +1,11 @@
+# ImmichFrame Standalone
+
+This fork of [immichFrame/ImmichFrame](https://github.com/immichFrame/ImmichFrame) preserves the standalone .NET/Avalonia Android client: it connects directly to an Immich server and does not require the separate ImmichFrame Docker service.
+
+The Android app is based on upstream `v1.0.15.0` and includes compatibility fixes for the current Immich API, Android 6 settings migration, and side-by-side installation under `io.github.tastelessjolt.immichframestandalone`.
+
+The legacy client deletes and recreates the configured `ImmichFrameAlbumName` album when it starts. This behavior is inherited from the upstream version.
+
 [![Contributors][contributors-shield]][contributors-url]
 [![Forks][forks-shield]][forks-url]
 [![Stargazers][stars-shield]][stars-url]
@@ -7,11 +15,11 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <a href="https://github.com/3rob3/ImmichFrame">
+  <a href="https://github.com/tastelessjolt/ImmichFrame-Standalone">
     <img src="ImmichFrame/Assets/AppIcon.png" alt="Logo" width="200" height="200">
   </a>
 
-  <h3 align="center">ImmichFrame</h3>
+  <h3 align="center">ImmichFrame Standalone</h3>
 
   <p align="center">
     An awesome way to display your photos as an digital photo frame
@@ -19,9 +27,9 @@
     <a href="https://immich.app/"><strong>Explore immich »</strong></a>
     <br />
     <br />
-    <a href="https://github.com/3rob3/ImmichFrame/issues">Report Bug</a>
+    <a href="https://github.com/tastelessjolt/ImmichFrame-Standalone/issues">Report Bug</a>
     ·
-    <a href="https://github.com/3rob3/ImmichFrame/issues">Request Feature</a>
+    <a href="https://github.com/tastelessjolt/ImmichFrame-Standalone/issues">Request Feature</a>
   </p>
 </div>
 
@@ -136,7 +144,7 @@ Needs documentation
 - [x] Web app
 - [ ] Add Additional Templates w/ Examples
 
-See the [open issues](https://github.com/3rob3/ImmichFrame/issues) for a full list of proposed features (and known issues).
+See the [open issues](https://github.com/tastelessjolt/ImmichFrame-Standalone/issues) for a full list of proposed features (and known issues).
 
 ## ✍ Contributing
 
@@ -165,22 +173,22 @@ Don't forget to give the project a star! Thanks again!
 
 ## 🌟 Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=3rob3/ImmichFrame&type=Date)](https://star-history.com/#3rob3/ImmichFrame&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=tastelessjolt/ImmichFrame-Standalone&type=Date)](https://star-history.com/#tastelessjolt/ImmichFrame-Standalone&Date)
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
 
-[contributors-shield]: https://img.shields.io/github/contributors/3rob3/ImmichFrame.svg?style=for-the-badge
-[contributors-url]: https://github.com/3rob3/ImmichFrame/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/3rob3/ImmichFrame.svg?style=for-the-badge
-[forks-url]: https://github.com/3rob3/ImmichFrame/network/members
-[stars-shield]: https://img.shields.io/github/stars/3rob3/ImmichFrame.svg?style=for-the-badge
-[stars-url]: https://github.com/3rob3/ImmichFrame/stargazers
-[issues-shield]: https://img.shields.io/github/issues/3rob3/ImmichFrame.svg?style=for-the-badge
-[issues-url]: https://github.com/3rob3/ImmichFrame/issues
-[license-shield]: https://img.shields.io/github/license/3rob3/ImmichFrame.svg?style=for-the-badge
-[license-url]: https://github.com/3rob3/ImmichFrame/blob/master/LICENSE.txt
-[releases-url]: https://github.com/3rob3/ImmichFrame/releases/latest
+[contributors-shield]: https://img.shields.io/github/contributors/tastelessjolt/ImmichFrame-Standalone.svg?style=for-the-badge
+[contributors-url]: https://github.com/tastelessjolt/ImmichFrame-Standalone/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/tastelessjolt/ImmichFrame-Standalone.svg?style=for-the-badge
+[forks-url]: https://github.com/tastelessjolt/ImmichFrame-Standalone/network/members
+[stars-shield]: https://img.shields.io/github/stars/tastelessjolt/ImmichFrame-Standalone.svg?style=for-the-badge
+[stars-url]: https://github.com/tastelessjolt/ImmichFrame-Standalone/stargazers
+[issues-shield]: https://img.shields.io/github/issues/tastelessjolt/ImmichFrame-Standalone.svg?style=for-the-badge
+[issues-url]: https://github.com/tastelessjolt/ImmichFrame-Standalone/issues
+[license-shield]: https://img.shields.io/github/license/tastelessjolt/ImmichFrame-Standalone.svg?style=for-the-badge
+[license-url]: https://github.com/tastelessjolt/ImmichFrame-Standalone/blob/standalone-android/LICENSE.txt
+[releases-url]: https://github.com/tastelessjolt/ImmichFrame-Standalone/releases/latest
 [support-url]: https://discord.com/channels/979116623879368755/1217843270244372480
 [openweathermap-url]: https://openweathermap.org/
 [immich-github-url]: https://github.com/immich-app/immich

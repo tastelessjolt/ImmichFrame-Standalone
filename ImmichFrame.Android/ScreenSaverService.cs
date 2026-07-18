@@ -5,7 +5,7 @@ using Android.Service.Dreams;
 
 namespace ImmichFrame.Android
 {
-    [Service(Name = "com.immichframe.immichframe.ScreenSaverService", Permission = "android.permission.BIND_DREAM_SERVICE")]
+    [Service(Name = "io.github.tastelessjolt.immichframestandalone.ScreenSaverService", Permission = "android.permission.BIND_DREAM_SERVICE")]
     public class ScreenSaverService : DreamService
     {
         private PowerManager.WakeLock? _wakeLock;

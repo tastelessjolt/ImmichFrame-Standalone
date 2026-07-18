@@ -707,7 +707,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "204": {
             "description": ""
           }
         },
@@ -7706,14 +7706,11 @@
           "albumThumbnailAssetId",
           "albumUsers",
           "assetCount",
-          "assets",
           "createdAt",
           "description",
           "hasSharedLink",
           "id",
           "isActivityEnabled",
-          "owner",
-          "ownerId",
           "shared",
           "updatedAt"
         ],
@@ -7787,6 +7784,7 @@
       "AlbumUserRole": {
         "enum": [
           "editor",
+          "owner",
           "viewer"
         ],
         "type": "string"
@@ -8377,7 +8375,8 @@
             "type": "string"
           },
           "duration": {
-            "type": "string"
+            "nullable": true,
+            "type": "integer"
           },
           "exifInfo": {
             "$ref": "#/components/schemas/ExifResponseDto"
@@ -8439,7 +8438,7 @@
           },
           "people": {
             "items": {
-              "$ref": "#/components/schemas/PersonWithFacesResponseDto"
+              "$ref": "#/components/schemas/PersonResponseDto"
             },
             "type": "array"
           },
@@ -8485,8 +8484,6 @@
         },
         "required": [
           "checksum",
-          "deviceAssetId",
-          "deviceId",
           "duration",
           "fileCreatedAt",
           "fileModifiedAt",

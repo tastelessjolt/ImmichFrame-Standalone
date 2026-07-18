@@ -172,7 +172,12 @@ namespace ImmichFrame.Models
 
             foreach (var SettingsValue in SettingsValues)
             {
-                var property = properties.First(x => x.Name == SettingsValue.Key);
+                var property = properties.FirstOrDefault(x => x.Name == SettingsValue.Key);
+
+                // Settings files can outlive the build that created them. Ignore
+                // newer or custom properties so older clients can still start.
+                if (property == null)
+                    continue;
 
                 var value = SettingsValue.Value;
 
