@@ -4,13 +4,20 @@ This fork of [immichFrame/ImmichFrame](https://github.com/immichFrame/ImmichFram
 
 The Android app is based on upstream `v1.0.15.0` and includes compatibility fixes for the current Immich API, Android 6 settings migration, and side-by-side installation under `io.github.tastelessjolt.immichframestandalone`.
 
+> **Modification notice:** This repository contains a modified version of
+> [immichFrame/ImmichFrame](https://github.com/immichFrame/ImmichFrame), based on upstream
+> `v1.0.15.0`. Fork-specific changes began on **19 July 2026** and include current Immich API
+> compatibility, the standalone Android package identity, Android 6 support, low-power frame UI
+> and stability work, remote device maintenance, and sunrise screen scheduling. See
+> [MODIFICATIONS.md](MODIFICATIONS.md) and the Git history for the dated change record.
+
 The legacy client deletes and recreates the configured `ImmichFrameAlbumName` album when it starts. This behavior is inherited from the upstream version.
 
 [![Contributors][contributors-shield]][contributors-url]
 [![Forks][forks-shield]][forks-url]
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
-[![MIT License][license-shield]][license-url]
+[![GPLv3 License][license-shield]][license-url]
 
 <!-- PROJECT LOGO -->
 <br />
@@ -168,7 +175,10 @@ Don't forget to give the project a star! Thanks again!
 
 ## 📜 License
 
-[GNU General Public License v3.0](LICENSE.txt)
+This modified fork remains licensed under the [GNU General Public License v3.0](LICENSE.txt).
+Release pages identify the exact corresponding-source tag next to each APK. Components retained
+under their own compatible licenses, including the bundled font, are documented in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## 🆘 Help
 
