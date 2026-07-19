@@ -127,7 +127,7 @@ Needs documentation
 ### Weather
 Weather is enabled by entering an API key. Get yours free from [OpenWeatherMap][openweathermap-url]
 
-On Android, the optional sunrise screen schedule uses `WeatherLatLong` and the device time zone. Sunrise and sunset are calculated locally without another weather request. When enabled, the display stays on from sunrise until midnight and sleeps from midnight until sunrise. The schedule refreshes when the app starts or settings are saved; standard Android also handles boot, clock, timezone, date, and app-update broadcasts. The screen power commands require root access on the Frameo device. This Frameo ROM additionally needs the documented [device-specific boot hook](docs/real-device-testing.md#frameo-boot-hook) because it rejects third-party background receivers.
+On Android, the optional sunrise screen schedule uses `WeatherLatLong` and the device time zone. Sunrise and sunset are calculated locally without another weather request. When enabled, the display stays on from sunrise until midnight and sleeps from midnight until sunrise. Opening the app or saving settings creates or replaces both alarms. Android removes application alarms during a reboot, so standard Android restores them through its boot receiver. This Frameo ROM instead needs the documented [device-specific boot hook](docs/real-device-testing.md#frameo-boot-hook) for unattended reboot or power-loss recovery because it rejects third-party background receivers. The hook is unnecessary if ImmichFrame is always opened manually after reboot. Screen power commands require root access on this Frameo device.
 
 ### Clock
 Needs documentation

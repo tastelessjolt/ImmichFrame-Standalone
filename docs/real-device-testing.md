@@ -70,6 +70,16 @@ ImmichFrame Standalone can keep the display on from local sunrise until midnight
 
 The schedule uses `WeatherLatLong` and the Android device time zone. Sunrise and sunset are calculated locally with no additional weather API request or polling. Sunset is recorded for diagnostics; the configured power transition is midnight-to-sunrise. Exact `RTC_WAKEUP` alarms are refreshed whenever the app starts or settings are saved. Standard Android devices also refresh them through the registered boot, clock, timezone, date, and package-replacement receiver; this Frameo uses the root boot hook below because its ROM rejects those background deliveries.
 
+The alarm lifecycle is:
+
+- Opening ImmichFrame manually creates or replaces the midnight and sunrise alarms.
+- Saving app settings recalculates and replaces both alarms.
+- Android removes application alarms during a device reboot.
+- The Frameo boot hook recreates them after an unattended reboot or power loss, without requiring the full app to be opened.
+- When a midnight or sunrise alarm runs, the native scheduler calculates and registers the following alarms again.
+
+The boot hook is therefore not required if ImmichFrame is always opened manually after every reboot. Its purpose is unattended recovery.
+
 The alarm PendingIntents open a zero-display, native Java activity rather than a broadcast receiver. This is intentional: the Frameo ROM labels background process forks as bad, but permits an activity PendingIntent to start. The native scheduler runs in the lightweight `:screen_schedule` process without loading Mono or Avalonia. At sunrise it wakes the display and starts the slideshow; at midnight it turns the display off.
 
 ### Frameo boot hook
