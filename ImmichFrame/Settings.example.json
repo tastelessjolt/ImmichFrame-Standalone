@@ -4,6 +4,7 @@
   "ImageStretch": "Uniform",
   "Margin": "0,0,0,0",
   "Interval": 10,
+  "TransitionAnimation": "Crossfade",
   "TransitionDuration": 2,
   "DownloadImages": false,
   "ShowMemories": false,

@@ -140,8 +140,17 @@
             <TextBlock Classes="supporting" Text="Used when Image fill leaves space around a photo." />
             <TextBlock Classes="fieldLabel" Text="Interval (seconds)" />
             <NumericUpDown Value="{Binding Settings.Interval}" Minimum="2" KeyDown="NumericUpDown_KeyDown" />
+            <TextBlock Classes="fieldLabel" Text="Transition animation" />
+            <ComboBox SelectedItem="{Binding Settings.TransitionAnimation}"
+                      ItemsSource="{Binding TransitionAnimationChoices}" />
+            <TextBlock Classes="supporting" Text="Previous reverses directional transitions." />
             <TextBlock Classes="fieldLabel" Text="Transition duration (seconds)" />
-            <NumericUpDown Value="{Binding Settings.TransitionDuration}" Minimum="0" KeyDown="NumericUpDown_KeyDown" />
+            <NumericUpDown Value="{Binding Settings.TransitionDuration}"
+                           Minimum="0"
+                           Maximum="5"
+                           Increment="0.1"
+                           FormatString="0.0"
+                           KeyDown="NumericUpDown_KeyDown" />
           </StackPanel>
           <StackPanel Grid.Column="1" Margin="10,0,0,0">
             <CheckBox Content="Download images for offline reuse" IsChecked="{Binding Settings.DownloadImages}" />

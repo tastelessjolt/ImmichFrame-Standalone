@@ -126,11 +126,14 @@ public partial class MainViewModel : NavigatableViewModelBase, IDisposable
             Dispatcher.UIThread.Post(Apply);
     }
 
-    public async Task SetImage(PreloadedAsset asset)
+    public async Task SetImage(PreloadedAsset asset, bool reverseTransition = false)
     {
-        await SetImage(asset.Asset, asset.Image);
+        await SetImage(asset.Asset, asset.Image, reverseTransition);
     }
-    public async Task SetImage(AssetResponseDto asset, Stream? preloadedAsset = null)
+    public async Task SetImage(
+        AssetResponseDto asset,
+        Stream? preloadedAsset = null,
+        bool reverseTransition = false)
     {
         Bitmap? decodedImage = null;
         Bitmap? thumbhashImage = null;
@@ -168,6 +171,7 @@ public partial class MainViewModel : NavigatableViewModelBase, IDisposable
                 ImageDate = imageDate;
                 ImageDesc = imageDesc;
                 ImageLocation = imageLocation;
+                TransitionReversed = reverseTransition;
                 Images = uiImage;
                 adopted = true;
             });
@@ -506,7 +510,7 @@ public partial class MainViewModel : NavigatableViewModelBase, IDisposable
             {
                 try
                 {
-                    await SetImage(previousAsset!);
+                    await SetImage(previousAsset!, reverseTransition: true);
                     CurrentAsset = previousAsset;
 
                     break;
@@ -609,6 +613,8 @@ public partial class MainViewModel : NavigatableViewModelBase, IDisposable
     private Bitmap? weatherImage;
     [ObservableProperty]
     private bool imagePaused = false;
+    [ObservableProperty]
+    private bool transitionReversed;
 
     partial void OnImagesChanged(UiImage? oldValue, UiImage? newValue)
     {

@@ -8,6 +8,7 @@
     public interface IClientSettings
     {
         public string ImageStretch { get; set; }
+        public string TransitionAnimation { get; set; }
         public string Margin { get; set; }
         public int Interval { get; set; }
         public double TransitionDuration { get; set; }

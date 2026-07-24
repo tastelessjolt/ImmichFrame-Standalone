@@ -3,118 +3,274 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ImmichFrame — Low-power transition lab</title>
+  <meta name="color-scheme" content="dark">
+  <title>ImmichFrame — Transition motion lab</title>
   <style>
+    @font-face {
+      font-family: "Google Sans Local";
+      src: url("../ImmichFrame/Assets/Fonts/GoogleSans-Regular.ttf") format("truetype");
+      font-style: normal;
+      font-weight: 400;
+      font-display: swap;
+    }
+
+    @font-face {
+      font-family: "Google Sans Local";
+      src: url("../ImmichFrame/Assets/Fonts/GoogleSans-Bold.ttf") format("truetype");
+      font-style: normal;
+      font-weight: 700;
+      font-display: swap;
+    }
+
     :root {
       color-scheme: dark;
-      --ink: #f4f1e8;
-      --muted: #aaa69c;
-      --line: #34332f;
-      --panel: #181816;
-      --panel-2: #20201d;
-      --accent: #ff7a3d;
-      --good: #b8e986;
-      --duration: 360ms;
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --paper: #0d0f0f;
+      --panel: #141716;
+      --panel-raised: #1a1e1c;
+      --ink: #f2f1e9;
+      --muted: #9ea39b;
+      --faint: #737970;
+      --line: #2b302d;
+      --acid: #d8ff72;
+      --sky: #8dd7ff;
+      --warm: #ff9868;
+      --duration: 520ms;
+      --direction: 1;
+      font-family: "Google Sans Local", "Segoe UI", sans-serif;
     }
 
     * { box-sizing: border-box; }
+
+    html { background: var(--paper); }
 
     body {
       margin: 0;
       min-width: 320px;
       background:
-        radial-gradient(circle at 82% 0%, rgb(255 122 61 / 9%), transparent 32rem),
-        #10100f;
+        linear-gradient(rgb(255 255 255 / 2%) 1px, transparent 1px),
+        linear-gradient(90deg, rgb(255 255 255 / 2%) 1px, transparent 1px),
+        radial-gradient(circle at 88% 2%, rgb(216 255 114 / 8%), transparent 30rem),
+        var(--paper);
+      background-size: 42px 42px, 42px 42px, auto, auto;
       color: var(--ink);
     }
 
     button, input { font: inherit; }
 
-    button:focus-visible, input:focus-visible {
-      outline: 3px solid rgb(255 122 61 / 55%);
+    button:focus-visible,
+    input:focus-visible,
+    [tabindex]:focus-visible {
+      outline: 3px solid rgb(216 255 114 / 65%);
       outline-offset: 3px;
     }
 
     .shell {
-      width: min(1480px, calc(100% - 40px));
+      width: min(1520px, calc(100% - 44px));
       margin: 0 auto;
-      padding: 42px 0 64px;
+      padding: 34px 0 72px;
     }
 
-    header {
+    .masthead {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 32px;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 430px);
+      gap: 52px;
       align-items: end;
-      padding-bottom: 28px;
+      padding: 26px 0 34px;
       border-bottom: 1px solid var(--line);
     }
 
     .eyebrow {
-      margin: 0 0 10px;
-      color: var(--accent);
-      font-size: .76rem;
-      font-weight: 750;
-      letter-spacing: .14em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 16px;
+      color: var(--acid);
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .16em;
       text-transform: uppercase;
     }
 
+    .eyebrow::before {
+      width: 28px;
+      height: 1px;
+      background: currentColor;
+      content: "";
+    }
+
     h1 {
-      max-width: 850px;
+      max-width: 870px;
       margin: 0;
-      font-family: Georgia, "Times New Roman", serif;
-      font-size: clamp(2.6rem, 5vw, 5.6rem);
+      font-size: clamp(3rem, 6.5vw, 7.2rem);
       font-weight: 400;
-      letter-spacing: -.045em;
-      line-height: .95;
+      letter-spacing: -.065em;
+      line-height: .86;
+    }
+
+    h1 em {
+      color: var(--muted);
+      font-style: normal;
     }
 
     .lede {
-      max-width: 720px;
-      margin: 20px 0 0;
+      max-width: 760px;
+      margin: 24px 0 0;
       color: var(--muted);
-      font-size: 1rem;
-      line-height: 1.6;
+      font-size: clamp(.98rem, 1.4vw, 1.12rem);
+      line-height: 1.62;
     }
 
-    .toolbar {
+    .control-deck {
       display: grid;
-      gap: 12px;
-      min-width: 250px;
-      padding: 18px;
+      gap: 17px;
+      padding: 21px;
       border: 1px solid var(--line);
-      background: rgb(24 24 22 / 88%);
+      background: rgb(20 23 22 / 92%);
+      box-shadow: 0 24px 70px rgb(0 0 0 / 24%);
     }
 
-    .toolbar label {
+    .control-row {
       display: flex;
+      align-items: center;
       justify-content: space-between;
       gap: 20px;
       color: var(--muted);
       font-size: .82rem;
     }
 
-    .toolbar output { color: var(--ink); font-variant-numeric: tabular-nums; }
-
-    input[type="range"] { width: 100%; accent-color: var(--accent); }
-
-    .primary, .replay {
-      min-height: 48px;
-      border: 1px solid var(--accent);
-      background: var(--accent);
-      color: #21110a;
-      cursor: pointer;
-      font-weight: 780;
+    .control-row output {
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
     }
 
-    .primary:hover, .replay:hover { filter: brightness(1.08); }
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--acid);
+      cursor: pointer;
+    }
+
+    .segmented {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      padding: 3px;
+      background: #0d0f0f;
+      border: 1px solid var(--line);
+    }
+
+    .segmented button {
+      min-height: 42px;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .segmented button[aria-pressed="true"] {
+      background: var(--panel-raised);
+      color: var(--ink);
+      box-shadow: inset 0 0 0 1px #343a36;
+    }
+
+    .primary,
+    .replay {
+      min-height: 48px;
+      border: 1px solid var(--acid);
+      background: var(--acid);
+      color: #151a0b;
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform 160ms ease, filter 160ms ease;
+    }
+
+    .primary:hover,
+    .replay:hover { filter: brightness(1.06); }
+    .primary:active,
+    .replay:active { transform: translateY(1px); }
+
+    .notice {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 18px;
+      align-items: center;
+      margin-top: 22px;
+      padding: 16px 18px;
+      border-left: 2px solid var(--sky);
+      background: rgb(141 215 255 / 6%);
+      color: var(--muted);
+      font-size: .88rem;
+      line-height: 1.5;
+    }
+
+    .notice strong {
+      color: var(--sky);
+      font-size: .71rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .shortlist {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      margin: 34px 0 0;
+      border: 1px solid var(--line);
+      background: var(--line);
+    }
+
+    .shortlist section {
+      min-width: 0;
+      padding: 19px 20px;
+      background: var(--panel);
+    }
+
+    .shortlist span {
+      color: var(--acid);
+      font: 700 .67rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: .11em;
+    }
+
+    .shortlist h2 {
+      margin: 8px 0 6px;
+      font-size: 1.02rem;
+      letter-spacing: -.02em;
+    }
+
+    .shortlist p {
+      margin: 0;
+      color: var(--muted);
+      font-size: .82rem;
+      line-height: 1.48;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 24px;
+      margin: 58px 0 17px;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-size: clamp(1.7rem, 3vw, 2.8rem);
+      font-weight: 400;
+      letter-spacing: -.045em;
+    }
+
+    .section-head p {
+      max-width: 520px;
+      margin: 0;
+      color: var(--muted);
+      font-size: .85rem;
+      line-height: 1.5;
+      text-align: right;
+    }
 
     .grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 1px;
-      margin-top: 36px;
       border: 1px solid var(--line);
       background: var(--line);
     }
@@ -125,173 +281,465 @@
       background: var(--panel);
     }
 
-    article.recommended {
-      background: linear-gradient(145deg, rgb(255 122 61 / 8%), transparent 55%), var(--panel);
+    article.favorite {
+      background:
+        linear-gradient(145deg, rgb(216 255 114 / 7%), transparent 45%),
+        var(--panel);
     }
 
     .article-head {
       display: grid;
       grid-template-columns: 1fr auto;
-      gap: 16px;
+      gap: 18px;
       align-items: start;
       margin-bottom: 16px;
     }
 
     .index {
       display: block;
-      margin-bottom: 5px;
-      color: var(--accent);
-      font: 700 .72rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-      letter-spacing: .1em;
+      margin-bottom: 6px;
+      color: var(--faint);
+      font: 700 .69rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: .12em;
     }
 
-    h2 { margin: 0; font-size: 1.22rem; letter-spacing: -.015em; }
+    article h3 {
+      margin: 0;
+      font-size: 1.18rem;
+      letter-spacing: -.02em;
+    }
 
-    .tag {
-      padding-top: 4px;
-      color: var(--good);
-      font-size: .72rem;
-      font-weight: 750;
+    .load {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      padding-top: 3px;
+      color: var(--muted);
+      font: 700 .64rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
       letter-spacing: .08em;
       text-transform: uppercase;
     }
+
+    .load i {
+      width: 5px;
+      height: 14px;
+      border: 1px solid #525850;
+      background: transparent;
+    }
+
+    .load.low i:first-of-type,
+    .load.medium i:nth-of-type(-n+2),
+    .load.high i { background: currentColor; }
+
+    .load.low { color: var(--acid); }
+    .load.medium { color: #ffd477; }
+    .load.high { color: var(--warm); }
 
     .stage {
       position: relative;
       overflow: hidden;
       aspect-ratio: 16 / 10;
-      background: #050505;
+      border: 1px solid rgb(255 255 255 / 6%);
+      background: #030404;
       contain: layout paint;
+      cursor: pointer;
       isolation: isolate;
     }
 
-    .scene {
+    .stage::after {
+      position: absolute;
+      z-index: 8;
+      inset: 0;
+      border: 1px solid rgb(255 255 255 / 7%);
+      pointer-events: none;
+      content: "";
+    }
+
+    .scene,
+    .shade {
       position: absolute;
       inset: 0;
       backface-visibility: hidden;
-      will-change: opacity, transform;
+      transform-origin: center;
+      will-change: opacity, transform, clip-path;
     }
 
-    .scene svg { display: block; width: 100%; height: 100%; }
+    .scene svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
     .scene-b { opacity: 0; }
 
-    .caption {
-      position: absolute;
-      z-index: 5;
-      right: 14px;
-      bottom: 12px;
-      padding: 5px 8px;
-      background: rgb(0 0 0 / 64%);
-      color: #fff;
-      font-size: .68rem;
-      letter-spacing: .06em;
-      text-transform: uppercase;
+    .shade {
+      z-index: 3;
+      background: #050606;
+      opacity: 0;
+      pointer-events: none;
     }
 
-    .fade-black.running .scene-a { animation: bridge-out var(--duration) cubic-bezier(.4, 0, .6, 1) both; }
-    .fade-black.running .scene-b { animation: bridge-in var(--duration) cubic-bezier(.4, 0, .2, 1) both; }
-    @keyframes bridge-out { 0% { opacity: 1 } 44%, 100% { opacity: 0 } }
-    @keyframes bridge-in { 0%, 52% { opacity: 0 } 100% { opacity: 1 } }
+    .stage-label {
+      position: absolute;
+      z-index: 7;
+      right: 13px;
+      bottom: 11px;
+      padding: 5px 8px;
+      background: rgb(4 6 5 / 72%);
+      color: #fff;
+      font-size: .64rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      backdrop-filter: blur(4px);
+    }
 
-    .crossfade.running .scene-a { animation: cross-out var(--duration) linear both; }
-    .crossfade.running .scene-b { animation: cross-in var(--duration) linear both; }
-    @keyframes cross-out { to { opacity: 0 } }
-    @keyframes cross-in { to { opacity: 1 } }
+    /* 01 — sequentially exposes the already-black stage. */
+    .dark-bridge.running .scene-a {
+      animation: dark-out var(--duration) cubic-bezier(.65, 0, .35, 1) both;
+    }
+    .dark-bridge.running .scene-b {
+      animation: dark-in var(--duration) cubic-bezier(.65, 0, .35, 1) both;
+    }
+    @keyframes dark-out { 0% { opacity: 1 } 45%, 100% { opacity: 0 } }
+    @keyframes dark-in { 0%, 55% { opacity: 0 } 100% { opacity: 1 } }
 
-    .slide.running .scene-a { animation: slide-out var(--duration) cubic-bezier(.2, .65, .3, 1) both; }
-    .slide.running .scene-b { animation: slide-in var(--duration) cubic-bezier(.2, .65, .3, 1) both; }
-    @keyframes slide-out { to { opacity: .15; transform: translateX(-2%) scale(1.015) } }
-    @keyframes slide-in { from { opacity: 0; transform: translateX(2%) scale(1.015) } to { opacity: 1; transform: none } }
+    /* 02 — the swap happens while a single inexpensive overlay is darkest. */
+    .exposure-dip.running .scene-a {
+      animation: dip-old var(--duration) steps(1, end) both;
+    }
+    .exposure-dip.running .scene-b {
+      animation: dip-new var(--duration) steps(1, end) both;
+    }
+    .exposure-dip.running .shade {
+      animation: dip-shade var(--duration) cubic-bezier(.45, 0, .2, 1) both;
+    }
+    @keyframes dip-old { 0%, 49% { opacity: 1 } 50%, 100% { opacity: 0 } }
+    @keyframes dip-new { 0%, 49% { opacity: 0 } 50%, 100% { opacity: 1 } }
+    @keyframes dip-shade { 0%, 100% { opacity: 0 } 48%, 52% { opacity: .84 } }
 
-    .cut.running .scene-a { opacity: 0; }
-    .cut.running .scene-b { opacity: 1; }
+    /* 03 — old image remains static; only the incoming plane moves. */
+    .quiet-cover.running .scene-a { opacity: 1; }
+    .quiet-cover.running .scene-b {
+      animation: cover-in var(--duration) cubic-bezier(.22, 1, .36, 1) both;
+    }
+    @keyframes cover-in {
+      from { opacity: .55; transform: translateX(calc(var(--direction) * 5%)) scale(1.008) }
+      to { opacity: 1; transform: none }
+    }
+
+    /* 04 — transform-only full-frame push; no semi-transparent overlap. */
+    .clean-push.running .scene-a {
+      animation: push-old var(--duration) cubic-bezier(.65, 0, .35, 1) both;
+    }
+    .clean-push.running .scene-b {
+      animation: push-new var(--duration) cubic-bezier(.65, 0, .35, 1) both;
+    }
+    @keyframes push-old {
+      from { opacity: 1; transform: translateX(0) }
+      to { opacity: 1; transform: translateX(calc(var(--direction) * -100%)) }
+    }
+    @keyframes push-new {
+      from { opacity: 1; transform: translateX(calc(var(--direction) * 100%)) }
+      to { opacity: 1; transform: translateX(0) }
+    }
+
+    /* 05 — hard-edged reveal avoids alpha blending, but relies on clipping. */
+    .edge-wipe.running .scene-a { opacity: 1; }
+    .edge-wipe.running .scene-b {
+      animation: wipe-in var(--duration) cubic-bezier(.76, 0, .24, 1) both;
+    }
+    @keyframes wipe-in {
+      from { opacity: 1; clip-path: inset(0 100% 0 0) }
+      to { opacity: 1; clip-path: inset(0 0 0 0) }
+    }
+    .reverse .edge-wipe.running .scene-b {
+      animation-name: wipe-in-reverse;
+    }
+    @keyframes wipe-in-reverse {
+      from { opacity: 1; clip-path: inset(0 0 0 100%) }
+      to { opacity: 1; clip-path: inset(0 0 0 0) }
+    }
+
+    /* 06 — a little scale makes the blend feel spatial, at a higher fill cost. */
+    .depth-handoff.running .scene-a {
+      animation: depth-old var(--duration) cubic-bezier(.4, 0, .2, 1) both;
+    }
+    .depth-handoff.running .scene-b {
+      animation: depth-new var(--duration) cubic-bezier(.16, 1, .3, 1) both;
+    }
+    @keyframes depth-old {
+      from { opacity: 1; transform: scale(1) }
+      to { opacity: 0; transform: scale(1.025) }
+    }
+    @keyframes depth-new {
+      from { opacity: 0; transform: scale(.985) }
+      to { opacity: 1; transform: scale(1) }
+    }
+
+    /* 07 — sequential opacity plus tiny travel; a calmer alternative to a push. */
+    .film-drift.running .scene-a {
+      animation: drift-old var(--duration) cubic-bezier(.55, 0, .45, 1) both;
+    }
+    .film-drift.running .scene-b {
+      animation: drift-new var(--duration) cubic-bezier(.22, 1, .36, 1) both;
+    }
+    @keyframes drift-old {
+      0% { opacity: 1; transform: translateX(0) }
+      46%, 100% { opacity: 0; transform: translateX(calc(var(--direction) * -1.8%)) }
+    }
+    @keyframes drift-new {
+      0%, 54% { opacity: 0; transform: translateX(calc(var(--direction) * 1.8%)) }
+      100% { opacity: 1; transform: translateX(0) }
+    }
+
+    /* 08 — circular clipping feels photographic, but should be profiled on-device. */
+    .soft-iris.running .scene-a { opacity: 1; }
+    .soft-iris.running .scene-b {
+      animation: iris-in var(--duration) cubic-bezier(.22, 1, .36, 1) both;
+    }
+    @keyframes iris-in {
+      from { opacity: 1; clip-path: circle(0% at 64% 46%) }
+      to { opacity: 1; clip-path: circle(80% at 64% 46%) }
+    }
+    .reverse .soft-iris.running .scene-b { animation-name: iris-in-reverse; }
+    @keyframes iris-in-reverse {
+      from { opacity: 1; clip-path: circle(0% at 36% 46%) }
+      to { opacity: 1; clip-path: circle(80% at 36% 46%) }
+    }
+
+    /* 09 — a flat tint hides a midpoint swap without blending two photographs. */
+    .tint-bridge.running .scene-a {
+      animation: tint-old var(--duration) steps(1, end) both;
+    }
+    .tint-bridge.running .scene-b {
+      animation: tint-new var(--duration) steps(1, end) both;
+    }
+    .tint-bridge .shade {
+      background: #315d68;
+      mix-blend-mode: normal;
+    }
+    .tint-bridge.running .shade {
+      animation: tint-shade var(--duration) cubic-bezier(.65, 0, .35, 1) both;
+    }
+    @keyframes tint-old { 0%, 49% { opacity: 1 } 50%, 100% { opacity: 0 } }
+    @keyframes tint-new { 0%, 49% { opacity: 0 } 50%, 100% { opacity: 1 } }
+    @keyframes tint-shade {
+      0%, 100% { opacity: 0 }
+      47% { opacity: .96; background: #7a4a54 }
+      53% { opacity: .96; background: #315d68 }
+    }
+
+    /* 10 — no interpolation; included as the performance and accessibility baseline. */
+    .clean-cut.running .scene-a { opacity: 0; }
+    .clean-cut.running .scene-b { opacity: 1; }
 
     .details {
       display: grid;
-      grid-template-columns: 1fr auto;
+      grid-template-columns: minmax(0, 1fr) auto;
       gap: 18px;
-      margin-top: 16px;
       align-items: end;
+      margin-top: 16px;
     }
 
-    .details p { margin: 0; color: var(--muted); font-size: .9rem; line-height: 1.55; }
-
-    .facts {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px 16px;
-      margin: 12px 0 0;
-      padding: 0;
-      list-style: none;
-      color: #d7d3ca;
-      font: 650 .72rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
-      text-transform: uppercase;
+    .details p {
+      margin: 0;
+      color: var(--muted);
+      font-size: .87rem;
+      line-height: 1.55;
     }
 
-    .facts strong { color: var(--good); font-weight: inherit; }
+    .curve {
+      display: inline-flex;
+      margin-top: 11px;
+      padding: 5px 7px;
+      border: 1px solid #373d39;
+      background: #101211;
+      color: #c8ccc5;
+      font: 600 .67rem/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+      cursor: copy;
+    }
+
+    .curve:hover { border-color: var(--acid); color: var(--acid); }
 
     .replay {
-      min-width: 92px;
+      min-width: 90px;
       background: transparent;
-      color: var(--accent);
+      color: var(--acid);
     }
 
-    .verdict {
+    .footnotes {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(3, 1fr);
       gap: 1px;
-      margin-top: 32px;
+      margin-top: 34px;
       border: 1px solid var(--line);
       background: var(--line);
     }
 
-    .verdict section { padding: 24px; background: var(--panel-2); }
-    .verdict h3 { margin: 0 0 9px; font-size: .9rem; text-transform: uppercase; letter-spacing: .08em; }
-    .verdict p { margin: 0; color: var(--muted); line-height: 1.55; }
+    .footnotes section {
+      padding: 21px;
+      background: var(--panel-raised);
+    }
 
-    @media (max-width: 850px) {
-      .shell { width: min(100% - 24px, 680px); padding-top: 24px; }
-      header, .grid, .verdict { grid-template-columns: 1fr; }
-      .toolbar { width: 100%; }
-      article { padding: 14px; }
-      h1 { font-size: clamp(2.5rem, 14vw, 4.5rem); }
+    .footnotes h2 {
+      margin: 0 0 8px;
+      font-size: .75rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .footnotes p {
+      margin: 0;
+      color: var(--muted);
+      font-size: .85rem;
+      line-height: 1.55;
+    }
+
+    .toast {
+      position: fixed;
+      z-index: 20;
+      right: 20px;
+      bottom: 20px;
+      padding: 11px 14px;
+      border: 1px solid #3a413c;
+      background: #171b18;
+      color: var(--ink);
+      box-shadow: 0 16px 50px rgb(0 0 0 / 42%);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 180ms ease, transform 180ms ease;
+      pointer-events: none;
+    }
+
+    .toast.visible { opacity: 1; transform: none; }
+
+    @media (max-width: 940px) {
+      .shell { width: min(100% - 24px, 740px); padding-top: 14px; }
+      .masthead, .grid, .shortlist, .footnotes { grid-template-columns: 1fr; }
+      .masthead { gap: 28px; }
+      .section-head { display: block; }
+      .section-head p { margin-top: 10px; text-align: left; }
+      article { padding: 15px; }
+      h1 { font-size: clamp(3.2rem, 17vw, 6.1rem); }
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .scene { animation-duration: 1ms !important; }
+      .scene, .shade { animation-duration: 1ms !important; }
+      .toast, .primary, .replay { transition: none; }
     }
   </style>
 </head>
 <body>
   <main class="shell">
-    <header>
+    <header class="masthead">
       <div>
-        <p class="eyebrow">ImmichFrame / transition study 01</p>
-        <h1>Clean motion,<br>small hardware.</h1>
-        <p class="lede">Four offline simulations for the 1280×800 Android 6 frame. The app itself still uses its existing crossfade; this page is only a decision tool for a possible follow-up.</p>
+        <p class="eyebrow">ImmichFrame / motion study 02</p>
+        <h1>Motion, at<br><em>frame rate.</em></h1>
+        <p class="lede">Ten transition directions for the 1280×800 Android 6 frame—from nearly free tonal bridges to more expressive clipping and two-layer movement. Click any preview to replay it.</p>
       </div>
-      <div class="toolbar" aria-label="Transition controls">
-        <label for="duration">Demo duration <output id="duration-output">360 ms</output></label>
-        <input id="duration" type="range" min="120" max="900" step="20" value="360">
+
+      <div class="control-deck" aria-label="Transition controls">
+        <div>
+          <label class="control-row" for="duration">
+            <span>Transition duration</span>
+            <output id="duration-output">520 ms</output>
+          </label>
+          <input id="duration" type="range" min="180" max="1200" step="20" value="520">
+        </div>
+        <div>
+          <span class="control-row">Navigation direction</span>
+          <div class="segmented" aria-label="Navigation direction">
+            <button id="previous" type="button" aria-pressed="false">← Previous</button>
+            <button id="next" type="button" aria-pressed="true">Next →</button>
+          </div>
+        </div>
         <button class="primary" id="replay-all" type="button">Replay all transitions</button>
       </div>
     </header>
 
+    <aside class="notice">
+      <strong>Decision tool</strong>
+      <span>This page changes no app code. Browser animation smoothness is illustrative; the final shortlist should still be profiled in Avalonia on the physical Frameo.</span>
+    </aside>
+
+    <div class="shortlist" aria-label="Recommended shortlist">
+      <section>
+        <span>01 / AMBIENT DEFAULT</span>
+        <h2>Dark bridge</h2>
+        <p>Calm and photograph-first. Only one detailed image needs to be visible at once.</p>
+      </section>
+      <section>
+        <span>02 / FAST DEFAULT</span>
+        <h2>Exposure dip</h2>
+        <p>A quick tonal breath hides an instantaneous image swap with very little motion.</p>
+      </section>
+      <section>
+        <span>03 / MANUAL NAVIGATION</span>
+        <h2>Quiet cover</h2>
+        <p>Directional enough for next/previous, without pushing both full images across the frame.</p>
+      </section>
+    </div>
+
+    <div class="section-head">
+      <h2>Transition contact sheet</h2>
+      <p>Cost labels are relative estimates for this device. Click a curve to copy its CSS value.</p>
+    </div>
+
     <div class="grid">
-      <article class="recommended">
+      <article class="favorite">
         <div class="article-head">
-          <div><span class="index">OPTION 01</span><h2>Fade through black</h2></div>
-          <span class="tag">Recommended</span>
+          <div><span class="index">OPTION 01 · AMBIENT</span><h3>Dark bridge</h3></div>
+          <span class="load low">Low <i></i><i></i><i></i></span>
         </div>
-        <div class="stage fade-black" data-transition>
+        <div class="stage dark-bridge" data-transition tabindex="0" role="button" aria-label="Replay dark bridge">
           <div class="scene scene-a" data-scene="a"></div>
           <div class="scene scene-b" data-scene="b"></div>
-          <span class="caption">Sequential opacity</span>
+          <span class="stage-label">Sequential opacity</span>
         </div>
         <div class="details">
           <div>
-            <p>The old photo fades out, the image swaps at black, then the new photo fades in. It feels intentional and avoids blending two detailed photos at the same instant.</p>
-            <ul class="facts"><li><strong>Lowest</strong> blend load</li><li>One visible photo</li><li>Modern / calm</li></ul>
+            <p>The old image settles into black, then the new one rises. Unhurried, neutral, and safest for the automatic slideshow.</p>
+            <code class="curve" title="Copy easing">cubic-bezier(.65, 0, .35, 1)</code>
+          </div>
+          <button class="replay" type="button">Replay</button>
+        </div>
+      </article>
+
+      <article class="favorite">
+        <div class="article-head">
+          <div><span class="index">OPTION 02 · AMBIENT</span><h3>Exposure dip</h3></div>
+          <span class="load low">Low <i></i><i></i><i></i></span>
+        </div>
+        <div class="stage exposure-dip" data-transition tabindex="0" role="button" aria-label="Replay exposure dip">
+          <div class="scene scene-a" data-scene="a"></div>
+          <div class="scene scene-b" data-scene="b"></div>
+          <div class="shade"></div>
+          <span class="stage-label">Dim · swap · lift</span>
+        </div>
+        <div class="details">
+          <div>
+            <p>A dark overlay briefly lowers exposure; the photo swaps beneath it at the midpoint. Shorter and less theatrical than a full fade.</p>
+            <code class="curve" title="Copy easing">cubic-bezier(.45, 0, .2, 1)</code>
+          </div>
+          <button class="replay" type="button">Replay</button>
+        </div>
+      </article>
+
+      <article class="favorite">
+        <div class="article-head">
+          <div><span class="index">OPTION 03 · NAVIGATION</span><h3>Quiet cover</h3></div>
+          <span class="load medium">Medium <i></i><i></i><i></i></span>
+        </div>
+        <div class="stage quiet-cover" data-transition tabindex="0" role="button" aria-label="Replay quiet cover">
+          <div class="scene scene-a" data-scene="a"></div>
+          <div class="scene scene-b" data-scene="b"></div>
+          <span class="stage-label">One moving plane</span>
+        </div>
+        <div class="details">
+          <div>
+            <p>The old photo stays fixed while the new photo covers the final few percent. Natural acceleration makes the small movement feel decisive.</p>
+            <code class="curve" title="Copy easing">cubic-bezier(.22, 1, .36, 1)</code>
           </div>
           <button class="replay" type="button">Replay</button>
         </div>
@@ -299,18 +747,18 @@
 
       <article>
         <div class="article-head">
-          <div><span class="index">OPTION 02</span><h2>Short crossfade</h2></div>
-          <span class="tag">Familiar</span>
+          <div><span class="index">OPTION 04 · NAVIGATION</span><h3>Clean push</h3></div>
+          <span class="load medium">Medium <i></i><i></i><i></i></span>
         </div>
-        <div class="stage crossfade" data-transition>
+        <div class="stage clean-push" data-transition tabindex="0" role="button" aria-label="Replay clean push">
           <div class="scene scene-a" data-scene="a"></div>
           <div class="scene scene-b" data-scene="b"></div>
-          <span class="caption">Simultaneous opacity</span>
+          <span class="stage-label">Transform only</span>
         </div>
         <div class="details">
           <div>
-            <p>The current visual language, shortened to roughly 180–300 ms. It reduces the time spent blending two textures, but still requires both photos every transition frame.</p>
-            <ul class="facts"><li>Medium blend load</li><li>Two visible photos</li><li>Least change</li></ul>
+            <p>A conventional full-frame push. It communicates history direction clearly and avoids translucent blending, but moves two large textures.</p>
+            <code class="curve" title="Copy easing">cubic-bezier(.65, 0, .35, 1)</code>
           </div>
           <button class="replay" type="button">Replay</button>
         </div>
@@ -318,18 +766,18 @@
 
       <article>
         <div class="article-head">
-          <div><span class="index">OPTION 03</span><h2>Subtle directional slide</h2></div>
-          <span class="tag">Expressive</span>
+          <div><span class="index">OPTION 05 · GRAPHIC</span><h3>Edge wipe</h3></div>
+          <span class="load medium">Medium <i></i><i></i><i></i></span>
         </div>
-        <div class="stage slide" data-transition>
+        <div class="stage edge-wipe" data-transition tabindex="0" role="button" aria-label="Replay edge wipe">
           <div class="scene scene-a" data-scene="a"></div>
           <div class="scene scene-b" data-scene="b"></div>
-          <span class="caption">Opacity + 2% shift</span>
+          <span class="stage-label">Animated clip</span>
         </div>
         <div class="details">
           <div>
-            <p>A very small horizontal shift gives next/previous a direction. It remains tasteful, but asks the GPU to blend and transform both photos, so it is not the safest frame default.</p>
-            <ul class="facts"><li>Medium–high load</li><li>Two photo layers</li><li>Clear direction</li></ul>
+            <p>The new image is revealed by a precise moving edge. Crisp and contemporary, though Avalonia clipping should be profiled before adoption.</p>
+            <code class="curve" title="Copy easing">cubic-bezier(.76, 0, .24, 1)</code>
           </div>
           <button class="replay" type="button">Replay</button>
         </div>
@@ -337,35 +785,118 @@
 
       <article>
         <div class="article-head">
-          <div><span class="index">OPTION 04</span><h2>Clean cut</h2></div>
-          <span class="tag">Fastest</span>
+          <div><span class="index">OPTION 06 · EXPRESSIVE</span><h3>Depth handoff</h3></div>
+          <span class="load high">High <i></i><i></i><i></i></span>
         </div>
-        <div class="stage cut" data-transition>
+        <div class="stage depth-handoff" data-transition tabindex="0" role="button" aria-label="Replay depth handoff">
           <div class="scene scene-a" data-scene="a"></div>
           <div class="scene scene-b" data-scene="b"></div>
-          <span class="caption">No animation</span>
+          <span class="stage-label">Scale + dissolve</span>
         </div>
         <div class="details">
           <div>
-            <p>An immediate swap has no animation cost and is appropriate for reduced-motion mode. It is the most reliable option, though less gentle for an ambient photo frame.</p>
-            <ul class="facts"><li><strong>Minimum</strong> load</li><li>One photo layer</li><li>Reduced motion</li></ul>
+            <p>A restrained zoom gives the dissolve depth. It is polished on capable hardware, but retains the current transition’s expensive overlap.</p>
+            <code class="curve" title="Copy easing">cubic-bezier(.16, 1, .3, 1)</code>
+          </div>
+          <button class="replay" type="button">Replay</button>
+        </div>
+      </article>
+
+      <article>
+        <div class="article-head">
+          <div><span class="index">OPTION 07 · AMBIENT</span><h3>Film drift</h3></div>
+          <span class="load low">Low <i></i><i></i><i></i></span>
+        </div>
+        <div class="stage film-drift" data-transition tabindex="0" role="button" aria-label="Replay film drift">
+          <div class="scene scene-a" data-scene="a"></div>
+          <div class="scene scene-b" data-scene="b"></div>
+          <span class="stage-label">Sequential + 1.8%</span>
+        </div>
+        <div class="details">
+          <div>
+            <p>A tiny directional drift is split around a dark midpoint. It preserves the low-overlap benefit while feeling more tactile than a plain fade.</p>
+            <code class="curve" title="Copy easing">cubic-bezier(.22, 1, .36, 1)</code>
+          </div>
+          <button class="replay" type="button">Replay</button>
+        </div>
+      </article>
+
+      <article>
+        <div class="article-head">
+          <div><span class="index">OPTION 08 · EXPRESSIVE</span><h3>Soft iris</h3></div>
+          <span class="load high">High <i></i><i></i><i></i></span>
+        </div>
+        <div class="stage soft-iris" data-transition tabindex="0" role="button" aria-label="Replay soft iris">
+          <div class="scene scene-a" data-scene="a"></div>
+          <div class="scene scene-b" data-scene="b"></div>
+          <span class="stage-label">Circular clip</span>
+        </div>
+        <div class="details">
+          <div>
+            <p>The next photograph opens from an off-centre focal point. Elegant and gallery-like, but animated circular clipping is a device-test candidate rather than a safe default.</p>
+            <code class="curve" title="Copy easing">cubic-bezier(.22, 1, .36, 1)</code>
+          </div>
+          <button class="replay" type="button">Replay</button>
+        </div>
+      </article>
+
+      <article>
+        <div class="article-head">
+          <div><span class="index">OPTION 09 · AMBIENT</span><h3>Tint bridge</h3></div>
+          <span class="load low">Low <i></i><i></i><i></i></span>
+        </div>
+        <div class="stage tint-bridge" data-transition tabindex="0" role="button" aria-label="Replay tint bridge">
+          <div class="scene scene-a" data-scene="a"></div>
+          <div class="scene scene-b" data-scene="b"></div>
+          <div class="shade"></div>
+          <span class="stage-label">Color field swap</span>
+        </div>
+        <div class="details">
+          <div>
+            <p>A muted dominant-color field briefly fills the frame while the image swaps. It feels warmer than black and can reuse color already derived for the letterbox backdrop.</p>
+            <code class="curve" title="Copy easing">cubic-bezier(.65, 0, .35, 1)</code>
+          </div>
+          <button class="replay" type="button">Replay</button>
+        </div>
+      </article>
+
+      <article>
+        <div class="article-head">
+          <div><span class="index">OPTION 10 · ACCESSIBILITY</span><h3>Clean cut</h3></div>
+          <span class="load low">Lowest <i></i><i></i><i></i></span>
+        </div>
+        <div class="stage clean-cut" data-transition tabindex="0" role="button" aria-label="Replay clean cut">
+          <div class="scene scene-a" data-scene="a"></div>
+          <div class="scene scene-b" data-scene="b"></div>
+          <span class="stage-label">No interpolation</span>
+        </div>
+        <div class="details">
+          <div>
+            <p>An immediate swap is the performance baseline and the correct reduced-motion fallback. Clean, reliable, and deliberately unanimated.</p>
+            <code class="curve" title="No easing is used">no easing</code>
           </div>
           <button class="replay" type="button">Replay</button>
         </div>
       </article>
     </div>
 
-    <div class="verdict">
+    <footer class="footnotes">
       <section>
-        <h3>Best default for this Frameo</h3>
-        <p>Fade through black at 300–450 ms. It hides the texture swap, avoids simultaneous image blending, and still reads as a deliberate transition rather than a performance concession.</p>
+        <h2>My first device test</h2>
+        <p>Implement Dark bridge, Exposure dip, and Quiet cover behind a temporary transition selector. They cover ambient, fast, and directional use without filters.</p>
       </section>
       <section>
-        <h3>What to avoid</h3>
-        <p>Blur, zoom-heavy wipes, and long dissolves. They add filter or overdraw cost without improving the photograph, and frame drops remain visible for longer.</p>
+        <h2>Avoid on this Frameo</h2>
+        <p>Live blur, large zooms, perspective rotation, and long crossfades. They increase texture sampling or overdraw exactly where this tablet struggles.</p>
       </section>
-    </div>
+      <section>
+        <h2>Timing range</h2>
+        <p>Try 360–520 ms for ambient bridges and 260–380 ms for manual navigation. Longer motion makes any dropped frame easier to see.</p>
+      </section>
+    </footer>
   </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">Curve copied</div>
 
   <template id="scene-a-template">
     <svg viewBox="0 0 1280 800" role="img" aria-label="Illustrated mountain lake at sunset">
@@ -403,12 +934,17 @@
     const duration = document.querySelector('#duration');
     const output = document.querySelector('#duration-output');
     const stages = [...document.querySelectorAll('[data-transition]')];
+    const previous = document.querySelector('#previous');
+    const next = document.querySelector('#next');
+    const toast = document.querySelector('#toast');
+    let toastTimer;
 
-    document.querySelectorAll('[data-scene="a"]').forEach(el => {
-      el.append(document.querySelector('#scene-a-template').content.cloneNode(true));
+    document.querySelectorAll('[data-scene="a"]').forEach(element => {
+      element.append(document.querySelector('#scene-a-template').content.cloneNode(true));
     });
-    document.querySelectorAll('[data-scene="b"]').forEach(el => {
-      el.append(document.querySelector('#scene-b-template').content.cloneNode(true));
+
+    document.querySelectorAll('[data-scene="b"]').forEach(element => {
+      element.append(document.querySelector('#scene-b-template').content.cloneNode(true));
     });
 
     function replay(stage) {
@@ -418,7 +954,22 @@
     }
 
     function replayAll() {
-      stages.forEach((stage, index) => setTimeout(() => replay(stage), index * 90));
+      stages.forEach((stage, index) => window.setTimeout(() => replay(stage), index * 75));
+    }
+
+    function setDirection(isPrevious) {
+      document.body.classList.toggle('reverse', isPrevious);
+      document.documentElement.style.setProperty('--direction', isPrevious ? '-1' : '1');
+      previous.setAttribute('aria-pressed', String(isPrevious));
+      next.setAttribute('aria-pressed', String(!isPrevious));
+      replayAll();
+    }
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('visible');
+      window.clearTimeout(toastTimer);
+      toastTimer = window.setTimeout(() => toast.classList.remove('visible'), 1500);
     }
 
     duration.addEventListener('input', () => {
@@ -426,9 +977,34 @@
       output.value = `${duration.value} ms`;
     });
 
+    previous.addEventListener('click', () => setDirection(true));
+    next.addEventListener('click', () => setDirection(false));
     document.querySelector('#replay-all').addEventListener('click', replayAll);
+
+    stages.forEach(stage => {
+      stage.addEventListener('click', () => replay(stage));
+      stage.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          replay(stage);
+        }
+      });
+    });
+
     document.querySelectorAll('.replay').forEach(button => {
       button.addEventListener('click', () => replay(button.closest('article').querySelector('[data-transition]')));
+    });
+
+    document.querySelectorAll('.curve').forEach(curve => {
+      curve.addEventListener('click', async () => {
+        if (curve.textContent === 'no easing') return;
+        try {
+          await navigator.clipboard.writeText(curve.textContent);
+          showToast('Curve copied');
+        } catch {
+          showToast('Select the curve to copy');
+        }
+      });
     });
 
     replayAll();

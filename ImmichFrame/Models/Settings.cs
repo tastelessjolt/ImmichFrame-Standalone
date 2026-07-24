@@ -37,6 +37,7 @@ namespace ImmichFrame.Models
         public string ApiKey { get; set; } = string.Empty;
         public string ImageStretch { get; set; } = "Uniform";
         public string LetterboxBackground { get; set; } = "Dark gradient";
+        public string TransitionAnimation { get; set; } = TransitionAnimationOptions.Crossfade;
         public string Margin { get; set; } = "0,0,0,0";
         public int Interval { get; set; } = 45;
         public double TransitionDuration { get; set; } = 1;
@@ -224,6 +225,12 @@ namespace ImmichFrame.Models
                             throw new SettingsNotValidException($"Value of '{SettingsValue.Key}' is not valid. ('{value}')");
                         property.SetValue(settings, letterboxBackground);
                         break;
+                    case "TransitionAnimation":
+                        var transitionAnimation = value.ToString();
+                        if (!TransitionAnimationOptions.All.Contains(transitionAnimation))
+                            throw new SettingsNotValidException($"Value of '{SettingsValue.Key}' is not valid. ('{value}')");
+                        property.SetValue(settings, transitionAnimation);
+                        break;
                     case "Albums":
                     case "ExcludedAlbums":
                     case "People":
@@ -344,6 +351,7 @@ namespace ImmichFrame.Models
                 ApiKey = "",
                 ImageStretch = "Uniform",
                 LetterboxBackground = LetterboxBackgroundOptions.DarkGradient,
+                TransitionAnimation = TransitionAnimationOptions.Crossfade,
                 ImageZoom = false,
                 Margin = "0,0,0,0",
                 Interval = 8,
@@ -393,6 +401,26 @@ namespace ImmichFrame.Models
             DarkGradient,
             StretchedThumbhash,
             BlurredDuplicate,
+        };
+    }
+
+    public static class TransitionAnimationOptions
+    {
+        public const string Crossfade = "Crossfade";
+        public const string CleanPush = "Clean push";
+        public const string EdgeWipe = "Edge wipe";
+        public const string SoftIris = "Soft iris";
+        public const string QuietCover = "Quiet cover";
+        public const string ExposureDip = "Exposure dip";
+
+        public static readonly IReadOnlyList<string> All = new[]
+        {
+            Crossfade,
+            CleanPush,
+            EdgeWipe,
+            SoftIris,
+            QuietCover,
+            ExposureDip,
         };
     }
 }

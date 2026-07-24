@@ -97,7 +97,8 @@ The Android 6 Frameo test device is reserved at `192.168.0.7` and accepts author
 | [Caching](#caching)     | RefreshAlbumPeopleInterval | int                | 12                   | Interval in hours. Determines how often images are pulled from a person in immich.                   |
 | [Image](#image)         | ImageZoom                  | boolean            | true                 | Zooms into or out of an image and gives it a touch of life.                                          |
 | [Image](#image)         | Interval                   | int                | 45                   | Image interval in seconds. How long a image is displayed in the frame.                               |
-| [Image](#image)         | TransitionDuration         | int                | 2                    | Duration in seconds.                                                                                 |
+| [Image](#image)         | TransitionAnimation        | string             | Crossfade            | Client transition: Crossfade, Clean push, Edge wipe, Soft iris, Quiet cover, or Exposure dip.        |
+| [Image](#image)         | TransitionDuration         | double             | 2                    | Duration in seconds; decimal values such as 0.52 are supported.                                      |
 | [Image](#image)         | ImageStretch               | int                | Uniform              | \*Client only.                                                                                       |
 | [Weather](#weather)     | WeatherApiKey              | string             |                      | Get api-key: [OpenWeatherMap][openweathermap-url].                                                   |
 | [Weather](#weather)     | UnitSystem                 | imperial \| metric | imperial             | Imperial or metric system. (Fahrenheit or degrees)                                                   |

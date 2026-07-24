@@ -59,10 +59,11 @@
     <TransitioningContentControl x:Name="transitioningControl"
                                  Grid.ColumnSpan="3"
                                  Grid.RowSpan="3"
+                                 Background="#050606"
+                                 ClipToBounds="True"
+                                 ZIndex="0"
+                                 IsTransitionReversed="{Binding TransitionReversed}"
                                  Content="{Binding Images}">
-      <TransitioningContentControl.PageTransition>
-        <CrossFade Duration="0:00:01.000" />
-      </TransitioningContentControl.PageTransition>
       <TransitioningContentControl.ContentTemplate>
         <DataTemplate>
           <Grid Background="#111315">
@@ -109,12 +110,22 @@
       </TransitioningContentControl.ContentTemplate>
     </TransitioningContentControl>
 
+    <!-- Exposure dip changes this flat color rather than fading two full
+         photo surfaces. It avoids the pale compositor backing layer exposed
+         by opacity transitions on the Frameo's Android 6 renderer. -->
+    <Border x:Name="transitionShade"
+            Grid.ColumnSpan="3"
+            Grid.RowSpan="3"
+            IsHitTestVisible="False"
+            Background="Transparent"
+            ZIndex="1" />
+
     <!-- Static scrims keep information readable on pale photos without using
          blur or another animated effect on the low-power GPU. -->
     <Border Grid.ColumnSpan="3"
             Grid.Row="2"
             IsHitTestVisible="False"
-            ZIndex="1">
+            ZIndex="2">
       <Border.Background>
         <LinearGradientBrush StartPoint="50%,0%" EndPoint="50%,100%">
           <GradientStop Offset="0" Color="#00000000" />
@@ -127,18 +138,21 @@
     <Button Grid.Column="0"
             Grid.Row="1"
             Classes="gestureZone"
+            ZIndex="3"
             Command="{Binding PreviousImageCommand}"
             HotKey="Left"
             AutomationProperties.Name="Previous photo" />
     <Button Grid.Column="2"
             Grid.Row="1"
             Classes="gestureZone"
+            ZIndex="3"
             Command="{Binding NextImageCommand}"
             HotKey="Right"
             AutomationProperties.Name="Next photo" />
     <Button Grid.Column="1"
             Grid.Row="1"
             Classes="gestureZone"
+            ZIndex="3"
             Command="{Binding PauseImageCommand}"
             HotKey="Space"
             AutomationProperties.Name="Pause or resume slideshow" />
@@ -152,7 +166,7 @@
             Padding="18,10"
             Background="#B8000000"
             CornerRadius="18"
-            ZIndex="2">
+            ZIndex="3">
       <TextBlock Classes="pauseLabel" Text="Paused" />
     </Border>
 
@@ -165,7 +179,7 @@
             Padding="5"
             Background="#CC171717"
             CornerRadius="18"
-            ZIndex="3">
+            ZIndex="4">
       <StackPanel Orientation="Horizontal">
         <Button Classes="overlayAction"
                 Command="{Binding NavigateSettingsPageCommand}"
@@ -198,7 +212,7 @@
       </StackPanel>
     </Border>
 
-    <StackPanel Grid.Column="0" Grid.Row="2" Margin="10" VerticalAlignment="Bottom" ZIndex="2">
+    <StackPanel Grid.Column="0" Grid.Row="2" Margin="10" VerticalAlignment="Bottom" ZIndex="3">
       <StackPanel Orientation="Horizontal">
         <TextBlock HorizontalAlignment="Left"
                    VerticalAlignment="Bottom"
@@ -228,7 +242,7 @@
                IsVisible="{Binding Settings.ShowPhotoDate}"
                Text="{Binding ImageDate}"
                FontSize="{Binding Settings.PhotoDateFontSize}"
-               ZIndex="2" />
+               ZIndex="3" />
     <TextBlock Grid.Column="1"
                Grid.Row="2"
                HorizontalAlignment="Center"
@@ -237,7 +251,7 @@
                IsVisible="{Binding Settings.ShowImageDesc}"
                Text="{Binding ImageDesc}"
                FontSize="{Binding Settings.ImageDescFontSize}"
-               ZIndex="2" />
+               ZIndex="3" />
     <TextBlock Grid.Column="0"
                Grid.Row="0"
                Margin="20"
@@ -246,6 +260,6 @@
                IsVisible="{Binding IsImageLocationVisible}"
                Text="{Binding ImageLocation}"
                FontSize="{Binding Settings.ImageLocationFontSize}"
-               ZIndex="2" />
+               ZIndex="3" />
   </Grid>
 </UserControl>

@@ -7,6 +7,7 @@ namespace ImmichFrame.WebApi.Models
     public class WebClientSettings : IWebClientSettings
     {
         public string ImageStretch { get; set; } = "Uniform";
+        public string TransitionAnimation { get; set; } = "Crossfade";
         public string Margin { get; set; } = "0,0,0,0";
         public int Interval { get; set; } = 45;
         public double TransitionDuration { get; set; } = 1;

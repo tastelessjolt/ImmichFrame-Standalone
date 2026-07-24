@@ -75,6 +75,7 @@ public partial class SettingsViewModel : NavigatableViewModelBase
     public ICommand TestMarginCommand { get; }
     public List<string> StretchOptions { get; } = Enum.GetNames(typeof(Stretch)).ToList();
     public IReadOnlyList<string> LetterboxBackgroundChoices { get; } = LetterboxBackgroundOptions.All;
+    public IReadOnlyList<string> TransitionAnimationChoices { get; } = TransitionAnimationOptions.All;
     public List<string> ImageLocationOptions { get; } = new() { "City", "City,State", "City,State,Country" };
 
     public SettingsViewModel() : this(true) { }

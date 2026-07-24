@@ -1,7 +1,7 @@
 ﻿using Avalonia;
-using Avalonia.Animation;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using ImmichFrame.Animations;
 using ImmichFrame.Helpers;
 using ImmichFrame.ViewModels;
 using System;
@@ -31,10 +31,10 @@ public partial class MainView : BaseView
         }
 
         _viewModel = (this.DataContext as MainViewModel)!;
-        if (transitioningControl.PageTransition is CrossFade crossFade)
-        {
-            crossFade.Duration = TimeSpan.FromSeconds(_viewModel.Settings.TransitionDuration);
-        }
+        transitioningControl.PageTransition = PhotoTransitionFactory.Create(
+            _viewModel.Settings.TransitionAnimation,
+            TimeSpan.FromSeconds(_viewModel.Settings.TransitionDuration),
+            transitionShade);
         await InitializeViewModelAsync();
     }
     private async Task InitializeViewModelAsync()
