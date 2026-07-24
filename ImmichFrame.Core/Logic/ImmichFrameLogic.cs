@@ -111,17 +111,13 @@ namespace ImmichFrame.Core.Logic
             const int pageSize = 250;
             var page = 1;
             var people = new List<PersonInfo>();
-            var configuredPeople = (_settings.People ?? new List<Guid>())
-                .Concat(_settings.ExcludedPeople ?? new List<Guid>())
-                .ToHashSet();
             bool hasNextPage;
 
             do
             {
                 var response = await immichApi.GetAllPeopleAsync(page, pageSize, true, cancellationToken);
                 people.AddRange(response.People
-                    .Where(person => Guid.TryParse(person.Id, out var id) &&
-                        (!string.IsNullOrWhiteSpace(person.Name) || configuredPeople.Contains(id)))
+                    .Where(person => Guid.TryParse(person.Id, out _))
                     .Select(person => new PersonInfo(Guid.Parse(person.Id), person.Name?.Trim() ?? string.Empty)));
 
                 hasNextPage = response.HasNextPage ?? response.People.Count == pageSize;
@@ -131,8 +127,20 @@ namespace ImmichFrame.Core.Logic
 
             return people
                 .DistinctBy(person => person.Id)
-                .OrderBy(person => person.Name, StringComparer.CurrentCultureIgnoreCase)
                 .ToList();
+        }
+
+        public async Task<byte[]?> GetPersonThumbnailAsync(
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            using var client = new HttpClient();
+            client.UseApiKey(_settings.ApiKey);
+            var immichApi = new ImmichApi(_settings.ImmichServerUrl, client);
+            using var response = await immichApi.GetPersonThumbnailAsync(id, cancellationToken);
+            using var thumbnail = new MemoryStream();
+            await response.Stream.CopyToAsync(thumbnail, cancellationToken);
+            return thumbnail.Length == 0 ? null : thumbnail.ToArray();
         }
 
         public async Task AddAssetToAlbum(AssetResponseDto assetToAdd)

@@ -12,6 +12,105 @@
     <vm:SettingsViewModel />
   </Design.DataContext>
 
+  <UserControl.Resources>
+    <DataTemplate x:Key="PersonListItemTemplate" x:DataType="vm:PersonListItem">
+      <Grid ColumnDefinitions="Auto,*"
+            MinHeight="52"
+            AttachedToVisualTree="PersonRow_AttachedToVisualTree"
+            DetachedFromVisualTree="PersonRow_DetachedFromVisualTree"
+            AutomationProperties.Name="{Binding DisplayName}">
+        <Border Width="48"
+                Height="48"
+                Margin="0,0,10,0"
+                Background="#183B82F6"
+                BorderBrush="#383B82F6"
+                BorderThickness="1"
+                CornerRadius="24"
+                ClipToBounds="True">
+          <Grid>
+            <TextBlock HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       FontSize="17"
+                       FontWeight="SemiBold"
+                       Foreground="#DDE8FF"
+                       IsVisible="{Binding IsThumbnailPlaceholderVisible}"
+                       Text="{Binding Initials}" />
+            <Image Source="{Binding Thumbnail}"
+                   Stretch="UniformToFill"
+                   RenderOptions.BitmapInterpolationMode="MediumQuality" />
+          </Grid>
+        </Border>
+        <StackPanel Grid.Column="1"
+                    VerticalAlignment="Center"
+                    Spacing="1">
+          <TextBlock FontSize="17"
+                     FontWeight="Medium"
+                     Text="{Binding DisplayName}"
+                     TextTrimming="CharacterEllipsis" />
+          <TextBlock Classes="supporting"
+                     FontSize="13"
+                     IsVisible="{Binding HasDetail}"
+                     Text="{Binding Detail}"
+                     TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+      </Grid>
+    </DataTemplate>
+
+    <DataTemplate x:Key="UnnamedPersonGridRowTemplate" x:DataType="vm:PersonGridRow">
+      <ItemsControl ItemsSource="{Binding People}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <UniformGrid Columns="10" Rows="1" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:PersonListItem">
+            <ToggleButton Classes="faceCell"
+                          Margin="3"
+                          Padding="5"
+                          MinWidth="96"
+                          MinHeight="112"
+                          HorizontalContentAlignment="Center"
+                          VerticalContentAlignment="Center"
+                          IsChecked="{Binding IsSelected, Mode=OneWay}"
+                          Command="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type UserControl}}, Path=DataContext.SelectUnnamedPersonCommand}"
+                          CommandParameter="{Binding}"
+                          AutomationProperties.Name="{Binding SelectionLabel}">
+              <StackPanel HorizontalAlignment="Center" Spacing="3">
+                <Border Width="80"
+                        Height="80"
+                        HorizontalAlignment="Center"
+                        Background="#183B82F6"
+                        BorderBrush="#483B82F6"
+                        BorderThickness="1"
+                        CornerRadius="40"
+                        ClipToBounds="True">
+                  <Grid AttachedToVisualTree="PersonRow_AttachedToVisualTree"
+                        DetachedFromVisualTree="PersonRow_DetachedFromVisualTree">
+                    <TextBlock HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontSize="22"
+                               FontWeight="SemiBold"
+                               Foreground="#DDE8FF"
+                               IsVisible="{Binding IsThumbnailPlaceholderVisible}"
+                               Text="?" />
+                    <Image Source="{Binding Thumbnail}"
+                           Stretch="UniformToFill"
+                           RenderOptions.BitmapInterpolationMode="MediumQuality" />
+                  </Grid>
+                </Border>
+                <TextBlock HorizontalAlignment="Center"
+                           FontSize="12"
+                           Opacity="0.78"
+                           Text="{Binding SelectionLabel}" />
+              </StackPanel>
+            </ToggleButton>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </DataTemplate>
+  </UserControl.Resources>
+
   <UserControl.Styles>
     <Style Selector="TextBlock">
       <Setter Property="FontFamily" Value="{StaticResource GoogleSans}" />
@@ -106,9 +205,19 @@
       <Setter Property="FontSize" Value="18" />
     </Style>
     <Style Selector="ListBoxItem">
-      <Setter Property="MinHeight" Value="52" />
-      <Setter Property="Padding" Value="12,8" />
+      <Setter Property="MinHeight" Value="64" />
+      <Setter Property="Padding" Value="8,6" />
       <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+    <Style Selector="ToggleButton.faceCell">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="2" />
+      <Setter Property="CornerRadius" Value="12" />
+    </Style>
+    <Style Selector="ToggleButton.faceCell:checked">
+      <Setter Property="Background" Value="#263B82F6" />
+      <Setter Property="BorderBrush" Value="#A83B82F6" />
     </Style>
   </UserControl.Styles>
 
@@ -204,24 +313,22 @@
             <StackPanel>
               <TextBlock Classes="sectionTitle" Text="People" />
               <TextBlock Classes="supporting" Text="{Binding PeopleStatus}" />
+              <TextBlock Classes="supporting"
+                         Text="Immich ranks each group by photo frequency. Face thumbnails load only while visible." />
             </StackPanel>
-            <Button Grid.Column="1" Content="Refresh names" Command="{Binding RefreshPeopleCommand}" />
+            <Button Grid.Column="1" Content="Refresh people" Command="{Binding RefreshPeopleCommand}" />
           </Grid>
 
+          <TextBlock Classes="sectionTitle" Text="Named people" />
           <Grid ColumnDefinitions="1.35*,*,*">
             <Border Grid.Column="0" BorderBrush="#557A7A7A" BorderThickness="1" CornerRadius="12" Padding="10">
               <Grid RowDefinitions="Auto,*,Auto">
-                <TextBlock Classes="sectionTitle" Text="Available people" />
+                <TextBlock Classes="sectionTitle" Text="Available" />
                 <ListBox Grid.Row="1"
-                         Height="280"
+                         Height="220"
                          ItemsSource="{Binding AvailablePeople}"
-                         SelectedItem="{Binding SelectedAvailablePerson}">
-                  <ListBox.ItemTemplate>
-                    <DataTemplate>
-                      <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
-                    </DataTemplate>
-                  </ListBox.ItemTemplate>
-                </ListBox>
+                         ItemTemplate="{StaticResource PersonListItemTemplate}"
+                         SelectedItem="{Binding SelectedAvailablePerson}" />
                 <UniformGrid Grid.Row="2" Columns="2" Margin="0,6,0,0">
                   <Button Content="Include" Command="{Binding IncludePersonCommand}" />
                   <Button Content="Exclude" Command="{Binding ExcludePersonCommand}" />
@@ -233,15 +340,10 @@
               <Grid RowDefinitions="Auto,*,Auto">
                 <TextBlock Classes="sectionTitle" Text="Included" />
                 <ListBox Grid.Row="1"
-                         Height="280"
+                         Height="220"
                          ItemsSource="{Binding IncludedPeople}"
-                         SelectedItem="{Binding SelectedIncludedPerson}">
-                  <ListBox.ItemTemplate>
-                    <DataTemplate>
-                      <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
-                    </DataTemplate>
-                  </ListBox.ItemTemplate>
-                </ListBox>
+                         ItemTemplate="{StaticResource PersonListItemTemplate}"
+                         SelectedItem="{Binding SelectedIncludedPerson}" />
                 <Button Grid.Row="2" Content="Remove selected" Command="{Binding RemoveIncludedPersonCommand}" />
               </Grid>
             </Border>
@@ -250,19 +352,52 @@
               <Grid RowDefinitions="Auto,*,Auto">
                 <TextBlock Classes="sectionTitle" Text="Excluded" />
                 <ListBox Grid.Row="1"
-                         Height="280"
+                         Height="220"
                          ItemsSource="{Binding ExcludedPeople}"
-                         SelectedItem="{Binding SelectedExcludedPerson}">
-                  <ListBox.ItemTemplate>
-                    <DataTemplate>
-                      <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
-                    </DataTemplate>
-                  </ListBox.ItemTemplate>
-                </ListBox>
+                         ItemTemplate="{StaticResource PersonListItemTemplate}"
+                         SelectedItem="{Binding SelectedExcludedPerson}" />
                 <Button Grid.Row="2" Content="Remove selected" Command="{Binding RemoveExcludedPersonCommand}" />
               </Grid>
             </Border>
           </Grid>
+
+          <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+            <StackPanel>
+              <TextBlock Classes="sectionTitle" Text="Unnamed faces" />
+              <TextBlock Classes="supporting"
+                         Text="Larger thumbnails use the full width; highest-photo-count faces appear first." />
+            </StackPanel>
+            <TextBlock Grid.Column="1"
+                       Classes="supporting"
+                       Margin="12,0,0,0"
+                       Text="{Binding UnnamedSelectionStatus}" />
+          </Grid>
+          <Border BorderBrush="#557A7A7A"
+                  BorderThickness="1"
+                  CornerRadius="12"
+                  Padding="8">
+            <Grid RowDefinitions="*,Auto">
+              <ListBox Classes="unnamedGrid"
+                       Height="350"
+                       ItemsSource="{Binding UnnamedPeopleRows}"
+                       ItemTemplate="{StaticResource UnnamedPersonGridRowTemplate}"
+                       SelectionMode="Single"
+                       ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.Styles>
+                  <Style Selector="ListBoxItem">
+                    <Setter Property="MinHeight" Value="118" />
+                    <Setter Property="Padding" Value="0" />
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                  </Style>
+                </ListBox.Styles>
+              </ListBox>
+              <UniformGrid Grid.Row="1" Columns="3" Margin="0,8,0,0">
+                <Button Content="Set available" Command="{Binding MakeUnnamedAvailableCommand}" />
+                <Button Content="Include selected" Command="{Binding IncludeUnnamedPersonCommand}" />
+                <Button Content="Exclude selected" Command="{Binding ExcludeUnnamedPersonCommand}" />
+              </UniformGrid>
+            </Grid>
+          </Border>
 
           <TextBlock Classes="fieldLabel" Text="Refresh album and people results every (hours)" />
           <NumericUpDown Value="{Binding Settings.RefreshAlbumPeopleInterval}" Minimum="1" KeyDown="NumericUpDown_KeyDown" />
