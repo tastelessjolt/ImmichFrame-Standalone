@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using ImmichFrame.ViewModels;
 using System;
 
 namespace ImmichFrame.Views
@@ -11,6 +12,26 @@ namespace ImmichFrame.Views
         public SettingsView()
         {
             InitializeComponent();
+        }
+        private void PersonRow_AttachedToVisualTree(
+            object? sender,
+            VisualTreeAttachmentEventArgs e)
+        {
+            if (sender is Control { DataContext: PersonListItem person } &&
+                DataContext is SettingsViewModel viewModel)
+            {
+                _ = viewModel.LoadPersonThumbnailAsync(person);
+            }
+        }
+        private void PersonRow_DetachedFromVisualTree(
+            object? sender,
+            VisualTreeAttachmentEventArgs e)
+        {
+            if (sender is Control { DataContext: PersonListItem person } &&
+                DataContext is SettingsViewModel viewModel)
+            {
+                viewModel.ReleasePersonThumbnail(person);
+            }
         }
         private void NumericUpDown_KeyDown(object sender, KeyEventArgs e)
         {

@@ -102,9 +102,17 @@ public class AlbumResponseCompatibilityTests
               "name": "Alex Example",
               "thumbnailPath": "thumb.jpg",
               "updatedAt": "2026-07-01T00:00:00.000Z"
+            },
+            {
+              "birthDate": null,
+              "id": "55555555-5555-4555-8555-555555555555",
+              "isHidden": false,
+              "name": "",
+              "thumbnailPath": "unnamed-thumb.jpg",
+              "updatedAt": "2026-07-01T00:00:00.000Z"
             }
           ],
-          "total": 1
+          "total": 2
         }
         """;
 
@@ -151,7 +159,7 @@ public class AlbumResponseCompatibilityTests
     }
 
     [Test]
-    public async Task GetAllPeople_accepts_named_people_response()
+    public async Task GetAllPeople_accepts_named_and_unnamed_people_response()
     {
         using var httpClient = new HttpClient(new JsonResponseHandler(CurrentPeopleResponse));
         var api = new ImmichApi("https://immich.example", httpClient);
@@ -161,9 +169,24 @@ public class AlbumResponseCompatibilityTests
         Assert.Multiple(() =>
         {
             Assert.That(result.HasNextPage, Is.False);
-            Assert.That(result.Total, Is.EqualTo(1));
-            Assert.That(result.People.Single().Name, Is.EqualTo("Alex Example"));
+            Assert.That(result.Total, Is.EqualTo(2));
+            Assert.That(result.People.Select(person => person.Name), Is.EqualTo(new[] { "Alex Example", string.Empty }));
         });
+    }
+
+    [Test]
+    public async Task GetPersonThumbnail_accepts_binary_response()
+    {
+        byte[] thumbnailBytes = [0xff, 0xd8, 0xff, 0xd9];
+        using var httpClient = new HttpClient(new BinaryResponseHandler(thumbnailBytes));
+        var api = new ImmichApi("https://immich.example", httpClient);
+
+        using var result = await api.GetPersonThumbnailAsync(
+            Guid.Parse("44444444-4444-4444-8444-444444444444"));
+        using var thumbnail = new MemoryStream();
+        await result.Stream.CopyToAsync(thumbnail);
+
+        Assert.That(thumbnail.ToArray(), Is.EqualTo(thumbnailBytes));
     }
 
     private sealed class JsonResponseHandler(string responseBody) : HttpMessageHandler
@@ -192,6 +215,24 @@ public class AlbumResponseCompatibilityTests
             {
                 RequestMessage = request,
             };
+
+            return Task.FromResult(response);
+        }
+    }
+
+    private sealed class BinaryResponseHandler(byte[] responseBody) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(responseBody),
+                RequestMessage = request,
+            };
+            response.Content.Headers.ContentType =
+                new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
 
             return Task.FromResult(response);
         }

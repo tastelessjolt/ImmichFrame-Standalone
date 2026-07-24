@@ -1,6 +1,8 @@
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using ImmichFrame.Core.Exceptions;
 using ImmichFrame.Core.Logic;
@@ -10,6 +12,7 @@ using ImmichFrame.Models;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,10 +20,16 @@ using System.Windows.Input;
 
 namespace ImmichFrame.ViewModels;
 
-public partial class SettingsViewModel : NavigatableViewModelBase
+public partial class SettingsViewModel : NavigatableViewModelBase, IDisposable
 {
+    private const int PersonThumbnailDecodeWidth = 80;
+    private const int UnnamedPeoplePerRow = 10;
     private readonly SemaphoreSlim peopleLoadGate = new(1, 1);
+    private readonly SemaphoreSlim thumbnailLoadGate = new(2, 2);
     private IReadOnlyList<PersonInfo> allPeople = Array.Empty<PersonInfo>();
+    private CancellationTokenSource thumbnailLoadCancellation = new();
+    private ImmichFrameLogic? peopleLogic;
+    private int disposed;
 
     [ObservableProperty]
     private ObservableCollection<PersonListItem> availablePeople = new();
@@ -32,6 +41,9 @@ public partial class SettingsViewModel : NavigatableViewModelBase
     private ObservableCollection<PersonListItem> excludedPeople = new();
 
     [ObservableProperty]
+    private ObservableCollection<PersonGridRow> unnamedPeopleRows = new();
+
+    [ObservableProperty]
     private PersonListItem? selectedAvailablePerson;
 
     [ObservableProperty]
@@ -41,7 +53,13 @@ public partial class SettingsViewModel : NavigatableViewModelBase
     private PersonListItem? selectedExcludedPerson;
 
     [ObservableProperty]
-    private string peopleStatus = "Loading people names…";
+    private PersonListItem? selectedUnnamedPerson;
+
+    [ObservableProperty]
+    private string peopleStatus = "Loading people…";
+
+    [ObservableProperty]
+    private string unnamedSelectionStatus = "Tap an unnamed face to change its filter.";
 
     [ObservableProperty]
     private bool isPeopleLoading;
@@ -68,6 +86,10 @@ public partial class SettingsViewModel : NavigatableViewModelBase
     public ICommand ExcludePersonCommand { get; }
     public ICommand RemoveIncludedPersonCommand { get; }
     public ICommand RemoveExcludedPersonCommand { get; }
+    public ICommand SelectUnnamedPersonCommand { get; }
+    public ICommand MakeUnnamedAvailableCommand { get; }
+    public ICommand IncludeUnnamedPersonCommand { get; }
+    public ICommand ExcludeUnnamedPersonCommand { get; }
     public ICommand AddAlbumCommand { get; }
     public ICommand RemoveAlbumCommand { get; }
     public ICommand AddExcludedAlbumCommand { get; }
@@ -101,6 +123,10 @@ public partial class SettingsViewModel : NavigatableViewModelBase
         ExcludePersonCommand = new RelayCommand(ExcludeSelectedPerson);
         RemoveIncludedPersonCommand = new RelayCommand(RemoveSelectedIncludedPerson);
         RemoveExcludedPersonCommand = new RelayCommand(RemoveSelectedExcludedPerson);
+        SelectUnnamedPersonCommand = new RelayCommandParams(SelectUnnamedPerson);
+        MakeUnnamedAvailableCommand = new RelayCommand(() => SetSelectedUnnamedState(PersonSelectionState.Available));
+        IncludeUnnamedPersonCommand = new RelayCommand(() => SetSelectedUnnamedState(PersonSelectionState.Included));
+        ExcludeUnnamedPersonCommand = new RelayCommand(() => SetSelectedUnnamedState(PersonSelectionState.Excluded));
         AddAlbumCommand = new RelayCommand(AddAlbumAction);
         RemoveAlbumCommand = new RelayCommandParams(RemoveAlbumAction);
         AddExcludedAlbumCommand = new RelayCommand(AddExcludedAlbumAction);
@@ -110,6 +136,7 @@ public partial class SettingsViewModel : NavigatableViewModelBase
         AlbumList = new ObservableCollection<ListItem>(Settings.Albums.Select(x => new ListItem(x.ToString())));
         ExcludedAlbumList = new ObservableCollection<ListItem>(Settings.ExcludedAlbums.Select(x => new ListItem(x.ToString())));
         CancelVisible = cancelEnabled;
+        Disposed += (_, _) => Dispose();
         ResetPeopleFromSettings();
         _ = LoadPeopleAsync();
     }
@@ -119,27 +146,40 @@ public partial class SettingsViewModel : NavigatableViewModelBase
         if (!await peopleLoadGate.WaitAsync(0))
             return;
 
-        var includedIds = IncludedPeople.Select(person => person.Id).ToList();
-        var excludedIds = ExcludedPeople.Select(person => person.Id).ToList();
+        var includedIds = GetPeopleInState(PersonSelectionState.Included).ToList();
+        var excludedIds = GetPeopleInState(PersonSelectionState.Excluded).ToList();
+        var loadCancellation = thumbnailLoadCancellation.Token;
 
         try
         {
             if (string.IsNullOrWhiteSpace(Settings.ImmichServerUrl) || string.IsNullOrWhiteSpace(Settings.ApiKey))
             {
-                PeopleStatus = "Enter the server URL and API key, then tap Refresh names.";
+                PeopleStatus = "Enter the server URL and API key, then tap Refresh people.";
                 return;
             }
 
             IsPeopleLoading = true;
-            PeopleStatus = "Loading people names…";
+            PeopleStatus = "Loading people…";
             var logic = new ImmichFrameLogic(Settings);
-            allPeople = await Task.Run(() => logic.GetPeopleAsync());
+            allPeople = await Task.Run(
+                () => logic.GetPeopleAsync(loadCancellation),
+                loadCancellation);
+            loadCancellation.ThrowIfCancellationRequested();
+            if (Volatile.Read(ref disposed) != 0)
+                return;
+
+            peopleLogic = logic;
+            ResetThumbnailLoading();
             RebuildPeopleLists(includedIds, excludedIds);
             UpdatePeopleStatus();
         }
+        catch (OperationCanceledException) when (loadCancellation.IsCancellationRequested)
+        {
+            // The settings view was closed or its people list was replaced.
+        }
         catch (Exception ex)
         {
-            PeopleStatus = $"Could not load names: {ex.Message}";
+            PeopleStatus = $"Could not load people: {ex.Message}";
         }
         finally
         {
@@ -155,30 +195,67 @@ public partial class SettingsViewModel : NavigatableViewModelBase
 
     private void RebuildPeopleLists(IEnumerable<Guid> includedIds, IEnumerable<Guid> excludedIds)
     {
-        var peopleById = allPeople.ToDictionary(person => person.Id);
-        var included = includedIds.Distinct().Select(id => CreatePersonListItem(id, peopleById)).ToList();
-        var excludedIdSet = excludedIds.Except(included.Select(person => person.Id)).ToHashSet();
-        var excluded = excludedIdSet.Select(id => CreatePersonListItem(id, peopleById)).ToList();
-        var selectedIds = included.Select(person => person.Id).Concat(excluded.Select(person => person.Id)).ToHashSet();
-        var available = allPeople
-            .Where(person => !selectedIds.Contains(person.Id))
-            .Select(person => new PersonListItem(person.Id, person.Name, true));
+        DisposePersonItems();
+        SelectedAvailablePerson = null;
+        SelectedIncludedPerson = null;
+        SelectedExcludedPerson = null;
+        if (SelectedUnnamedPerson is not null)
+            SelectedUnnamedPerson.IsSelected = false;
+        SelectedUnnamedPerson = null;
+        UnnamedSelectionStatus = "Tap an unnamed face to change its filter.";
 
-        IncludedPeople = ToSortedCollection(included);
-        ExcludedPeople = ToSortedCollection(excluded);
-        AvailablePeople = ToSortedCollection(available);
+        var includedIdSet = includedIds.Distinct().ToHashSet();
+        var excludedIdSet = excludedIds
+            .Where(id => !includedIdSet.Contains(id))
+            .Distinct()
+            .ToHashSet();
+        var resolvedIds = allPeople.Select(person => person.Id).ToHashSet();
+        var orderedItems = allPeople
+            .Select((person, index) => new PersonListItem(
+                person.Id,
+                person.Name,
+                true,
+                GetSelectionState(person.Id, includedIdSet, excludedIdSet),
+                index))
+            .ToList();
+
+        var unresolvedItems = includedIdSet
+            .Concat(excludedIdSet)
+            .Where(id => !resolvedIds.Contains(id))
+            .Distinct()
+            .Select((id, index) => new PersonListItem(
+                id,
+                "Saved person (name unavailable)",
+                false,
+                includedIdSet.Contains(id) ? PersonSelectionState.Included : PersonSelectionState.Excluded,
+                allPeople.Count + index));
+        orderedItems.AddRange(unresolvedItems);
+
+        var namedItems = orderedItems.Where(person => !person.IsUnnamedGridCandidate);
+        AvailablePeople = ToOrderedCollection(namedItems.Where(person => person.SelectionState == PersonSelectionState.Available));
+        IncludedPeople = ToOrderedCollection(namedItems.Where(person => person.SelectionState == PersonSelectionState.Included));
+        ExcludedPeople = ToOrderedCollection(namedItems.Where(person => person.SelectionState == PersonSelectionState.Excluded));
+        UnnamedPeopleRows = PersonGridRow.Create(
+            orderedItems.Where(person => person.IsUnnamedGridCandidate),
+            UnnamedPeoplePerRow);
     }
 
-    private static PersonListItem CreatePersonListItem(Guid id, IReadOnlyDictionary<Guid, PersonInfo> peopleById)
+    private static PersonSelectionState GetSelectionState(
+        Guid id,
+        IReadOnlySet<Guid> includedIds,
+        IReadOnlySet<Guid> excludedIds)
     {
-        return peopleById.TryGetValue(id, out var person)
-            ? new PersonListItem(id, person.Name, true)
-            : new PersonListItem(id, "Saved person (name unavailable)", false);
+        if (includedIds.Contains(id))
+            return PersonSelectionState.Included;
+
+        return excludedIds.Contains(id)
+            ? PersonSelectionState.Excluded
+            : PersonSelectionState.Available;
     }
 
-    private static ObservableCollection<PersonListItem> ToSortedCollection(IEnumerable<PersonListItem> people)
+    private static ObservableCollection<PersonListItem> ToOrderedCollection(IEnumerable<PersonListItem> people)
     {
-        return new ObservableCollection<PersonListItem>(people.OrderBy(person => person.DisplayName, StringComparer.CurrentCultureIgnoreCase));
+        return new ObservableCollection<PersonListItem>(people.OrderBy(person => person.SortIndex));
     }
 
     private void IncludeSelectedPerson()
@@ -202,7 +279,10 @@ public partial class SettingsViewModel : NavigatableViewModelBase
 
         AvailablePeople.Remove(person);
         RemoveById(otherList, person.Id);
-        AddSorted(destination, person);
+        person.SelectionState = ReferenceEquals(destination, IncludedPeople)
+            ? PersonSelectionState.Included
+            : PersonSelectionState.Excluded;
+        AddOrdered(destination, person);
         UpdatePeopleStatus();
     }
 
@@ -224,17 +304,18 @@ public partial class SettingsViewModel : NavigatableViewModelBase
             return;
 
         source.Remove(person);
+        person.SelectionState = PersonSelectionState.Available;
         if (allPeople.Any(candidate => candidate.Id == person.Id))
-            AddSorted(AvailablePeople, person);
+            AddOrdered(AvailablePeople, person);
         UpdatePeopleStatus();
     }
 
-    private static void AddSorted(ObservableCollection<PersonListItem> collection, PersonListItem person)
+    private static void AddOrdered(ObservableCollection<PersonListItem> collection, PersonListItem person)
     {
         if (collection.Any(existing => existing.Id == person.Id))
             return;
 
-        var index = collection.TakeWhile(existing => StringComparer.CurrentCultureIgnoreCase.Compare(existing.DisplayName, person.DisplayName) <= 0).Count();
+        var index = collection.TakeWhile(existing => existing.SortIndex <= person.SortIndex).Count();
         collection.Insert(index, person);
     }
 
@@ -247,7 +328,147 @@ public partial class SettingsViewModel : NavigatableViewModelBase
 
     private void UpdatePeopleStatus()
     {
-        PeopleStatus = $"{AvailablePeople.Count} available · {IncludedPeople.Count} included · {ExcludedPeople.Count} excluded";
+        var unnamedPeople = UnnamedPeopleRows.SelectMany(row => row.People).ToList();
+        var availableCount = AvailablePeople.Count +
+            unnamedPeople.Count(person => person.SelectionState == PersonSelectionState.Available);
+        var includedCount = IncludedPeople.Count +
+            unnamedPeople.Count(person => person.SelectionState == PersonSelectionState.Included);
+        var excludedCount = ExcludedPeople.Count +
+            unnamedPeople.Count(person => person.SelectionState == PersonSelectionState.Excluded);
+        PeopleStatus = $"{availableCount} available · {includedCount} included · {excludedCount} excluded";
+    }
+
+    private IEnumerable<Guid> GetPeopleInState(PersonSelectionState state)
+    {
+        var namedPeople = state switch
+        {
+            PersonSelectionState.Included => IncludedPeople,
+            PersonSelectionState.Excluded => ExcludedPeople,
+            _ => AvailablePeople,
+        };
+
+        return namedPeople
+            .Select(person => person.Id)
+            .Concat(UnnamedPeopleRows
+                .SelectMany(row => row.People)
+                .Where(person => person.SelectionState == state)
+                .Select(person => person.Id));
+    }
+
+    private void SelectUnnamedPerson(object value)
+    {
+        if (value is not PersonListItem person)
+            return;
+
+        if (SelectedUnnamedPerson is not null && !ReferenceEquals(SelectedUnnamedPerson, person))
+            SelectedUnnamedPerson.IsSelected = false;
+
+        SelectedUnnamedPerson = person;
+        person.IsSelected = true;
+        UpdateUnnamedSelectionStatus();
+    }
+
+    private void SetSelectedUnnamedState(PersonSelectionState state)
+    {
+        if (SelectedUnnamedPerson is null)
+            return;
+
+        SelectedUnnamedPerson.SelectionState = state;
+        UpdateUnnamedSelectionStatus();
+        UpdatePeopleStatus();
+    }
+
+    private void UpdateUnnamedSelectionStatus()
+    {
+        UnnamedSelectionStatus = SelectedUnnamedPerson is null
+            ? "Tap an unnamed face to change its filter."
+            : $"Selected face · {SelectedUnnamedPerson.SelectionLabel}";
+    }
+
+    public async Task LoadPersonThumbnailAsync(PersonListItem person)
+    {
+        var logic = peopleLogic;
+        var cancellation = thumbnailLoadCancellation;
+        if (Volatile.Read(ref disposed) != 0 ||
+            logic is null ||
+            !person.TryBeginThumbnailLoad(out var requestVersion))
+        {
+            return;
+        }
+
+        var enteredGate = false;
+        Bitmap? thumbnail = null;
+        try
+        {
+            await thumbnailLoadGate.WaitAsync(cancellation.Token);
+            enteredGate = true;
+            var thumbnailBytes = await logic.GetPersonThumbnailAsync(
+                person.Id,
+                cancellation.Token);
+
+            if (thumbnailBytes is null || thumbnailBytes.Length == 0)
+            {
+                person.MarkThumbnailUnavailable(requestVersion);
+                return;
+            }
+
+            thumbnail = await Task.Run(() =>
+            {
+                using var encodedThumbnail = new MemoryStream(thumbnailBytes);
+                return Bitmap.DecodeToWidth(
+                    encodedThumbnail,
+                    PersonThumbnailDecodeWidth,
+                    BitmapInterpolationMode.MediumQuality);
+            }, cancellation.Token);
+
+            cancellation.Token.ThrowIfCancellationRequested();
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                if (cancellation.IsCancellationRequested)
+                    return;
+
+                if (person.TrySetThumbnail(thumbnail, requestVersion))
+                    thumbnail = null;
+            });
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            // The settings view or people list was replaced.
+        }
+        catch
+        {
+            person.MarkThumbnailUnavailable(requestVersion);
+        }
+        finally
+        {
+            thumbnail?.Dispose();
+            if (enteredGate)
+                thumbnailLoadGate.Release();
+        }
+    }
+
+    public void ReleasePersonThumbnail(PersonListItem person)
+    {
+        person.ReleaseThumbnail();
+    }
+
+    private void ResetThumbnailLoading()
+    {
+        var previousCancellation = thumbnailLoadCancellation;
+        thumbnailLoadCancellation = new CancellationTokenSource();
+        previousCancellation.Cancel();
+        previousCancellation.Dispose();
+    }
+
+    private void DisposePersonItems()
+    {
+        AvailablePeople
+            .Concat(IncludedPeople)
+            .Concat(ExcludedPeople)
+            .Concat(UnnamedPeopleRows.SelectMany(row => row.People))
+            .DistinctBy(person => person.Id)
+            .ToList()
+            .ForEach(person => person.Dispose());
     }
 
     private void TestMarginAction() => UpdateMargin(Settings.Margin);
@@ -287,8 +508,8 @@ public partial class SettingsViewModel : NavigatableViewModelBase
     {
         try
         {
-            Settings.People = IncludedPeople.Select(x => x.Id).ToList();
-            Settings.ExcludedPeople = ExcludedPeople.Select(x => x.Id).ToList();
+            Settings.People = GetPeopleInState(PersonSelectionState.Included).ToList();
+            Settings.ExcludedPeople = GetPeopleInState(PersonSelectionState.Excluded).ToList();
             Settings.Albums = AlbumList.Select(x => Guid.Parse(x.Value)).ToList();
             Settings.ExcludedAlbums = ExcludedAlbumList.Select(x => Guid.Parse(x.Value)).ToList();
             if (string.IsNullOrEmpty(Settings.ImmichServerUrl) || string.IsNullOrEmpty(Settings.ApiKey))
@@ -357,20 +578,174 @@ public partial class SettingsViewModel : NavigatableViewModelBase
         });
         return files.FirstOrDefault();
     }
+
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref disposed, 1) != 0)
+            return;
+
+        thumbnailLoadCancellation.Cancel();
+        DisposePersonItems();
+        peopleLogic = null;
+    }
 }
 
-public sealed class PersonListItem
+public sealed class PersonListItem : ObservableObject, IDisposable
 {
-    public PersonListItem(Guid id, string? name, bool isResolved)
+    private Bitmap? thumbnail;
+    private PersonSelectionState selectionState;
+    private bool isSelected;
+    private int thumbnailLoadStarted;
+    private int thumbnailRequestVersion;
+    private int disposed;
+
+    public PersonListItem(
+        Guid id,
+        string? name,
+        bool isResolved,
+        PersonSelectionState selectionState = PersonSelectionState.Available,
+        int sortIndex = int.MaxValue)
     {
         Id = id;
         DisplayName = string.IsNullOrWhiteSpace(name) ? "Unnamed person" : name;
-        Detail = isResolved ? string.Empty : id.ToString();
+        Detail = isResolved
+            ? string.IsNullOrWhiteSpace(name) ? "No name in Immich" : string.Empty
+            : "Saved person · name unavailable";
+        Initials = CreateInitials(name);
+        IsUnnamedGridCandidate = isResolved && string.IsNullOrWhiteSpace(name);
+        this.selectionState = selectionState;
+        SortIndex = sortIndex;
     }
 
     public Guid Id { get; }
     public string DisplayName { get; }
     public string Detail { get; }
+    public bool HasDetail => !string.IsNullOrWhiteSpace(Detail);
+    public string Initials { get; }
+    public bool IsUnnamedGridCandidate { get; }
+    public int SortIndex { get; }
+    public PersonSelectionState SelectionState
+    {
+        get => selectionState;
+        set
+        {
+            if (SetProperty(ref selectionState, value))
+                OnPropertyChanged(nameof(SelectionLabel));
+        }
+    }
+    public string SelectionLabel => SelectionState switch
+    {
+        PersonSelectionState.Included => "Included",
+        PersonSelectionState.Excluded => "Excluded",
+        _ => "Available",
+    };
+    public bool IsSelected
+    {
+        get => isSelected;
+        set => SetProperty(ref isSelected, value);
+    }
+    public Bitmap? Thumbnail
+    {
+        get => thumbnail;
+        private set
+        {
+            if (SetProperty(ref thumbnail, value))
+                OnPropertyChanged(nameof(IsThumbnailPlaceholderVisible));
+        }
+    }
+    public bool IsThumbnailPlaceholderVisible => Thumbnail is null;
+
+    internal bool TryBeginThumbnailLoad(out int requestVersion)
+    {
+        requestVersion = Volatile.Read(ref thumbnailRequestVersion);
+        return Volatile.Read(ref disposed) == 0 &&
+            Interlocked.Exchange(ref thumbnailLoadStarted, 1) == 0;
+    }
+
+    internal bool TrySetThumbnail(Bitmap value, int requestVersion)
+    {
+        if (Volatile.Read(ref disposed) != 0 ||
+            requestVersion != Volatile.Read(ref thumbnailRequestVersion))
+        {
+            return false;
+        }
+
+        var previous = Thumbnail;
+        Thumbnail = value;
+        previous?.Dispose();
+        return true;
+    }
+
+    internal void MarkThumbnailUnavailable(int requestVersion)
+    {
+        if (Volatile.Read(ref disposed) == 0 &&
+            requestVersion == Volatile.Read(ref thumbnailRequestVersion))
+            OnPropertyChanged(nameof(IsThumbnailPlaceholderVisible));
+    }
+
+    internal void ReleaseThumbnail()
+    {
+        if (Volatile.Read(ref disposed) != 0)
+            return;
+
+        Interlocked.Increment(ref thumbnailRequestVersion);
+        Interlocked.Exchange(ref thumbnailLoadStarted, 0);
+        var previous = Thumbnail;
+        Thumbnail = null;
+        previous?.Dispose();
+    }
+
+    private static string CreateInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "?";
+
+        return string.Concat(name
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Take(2)
+            .Select(part => char.ToUpperInvariant(part[0])));
+    }
+
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref disposed, 1) != 0)
+            return;
+
+        var previous = Thumbnail;
+        Thumbnail = null;
+        previous?.Dispose();
+    }
+}
+
+public enum PersonSelectionState
+{
+    Available,
+    Included,
+    Excluded,
+}
+
+public sealed class PersonGridRow
+{
+    private PersonGridRow(IReadOnlyList<PersonListItem> people)
+    {
+        People = people;
+    }
+
+    public IReadOnlyList<PersonListItem> People { get; }
+
+    public static ObservableCollection<PersonGridRow> Create(
+        IEnumerable<PersonListItem> people,
+        int peoplePerRow)
+    {
+        if (peoplePerRow <= 0)
+            throw new ArgumentOutOfRangeException(nameof(peoplePerRow));
+
+        var rows = people
+            .Select((person, index) => new { person, index })
+            .GroupBy(item => item.index / peoplePerRow)
+            .Select(group => new PersonGridRow(group.Select(item => item.person).ToList()));
+        return new ObservableCollection<PersonGridRow>(rows);
+    }
 }
 
 public class ListItem
